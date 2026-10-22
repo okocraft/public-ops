@@ -1,11 +1,15 @@
 # Releaser
 
-Status: **design and contracts only**. Nothing in this directory currently creates tags,
-modifies target repositories, or publishes releases.
+Status: **design and contracts only**. Nothing in this directory currently
+creates tags, modifies target repositories, or publishes releases.
 
-Releaser will accept an immutable release request for a specific repository, version,
-and full commit SHA, run the relevant tests/build, and publish verified binaries to
-the target repository's GitHub Release.
+Releaser aims to turn a request such as "release okocraft/Yaminabe at 0.1.0"
+into a tested GitHub Release with the expected binaries attached **without a
+per-repository Releaser configuration file**.
+
+The existing project's build definitions remain the source of truth.
+Releaser discovers the build tool, version, and distribution artifacts; if it
+cannot identify them safely, it fails instead of guessing or attaching all JARs.
 
 ## Execution modes
 
@@ -14,48 +18,51 @@ the target repository's GitHub Release.
 | Workflow execution | Central workflow in `okocraft/public-ops` | Reusable workflow invoked **inside** the private target repository |
 | Human approval | Required reviewer on the central `release` environment before publishing | None |
 | Publishing identity | GitHub App installation token scoped to the target repository; minted only after approval | Target repository `GITHUB_TOKEN` |
-| Build logs and artifacts | Public, so **public repositories only** | Remain private in the calling repository |
+| Build logs and artifacts | Public: **public repositories only** | Remain private in the calling repository |
 | Build source | Exact requested commit SHA | Exact requested commit SHA |
+| Per-project Releaser config | **Not required** | **Not required** |
 
-The two modes use the **same release contract and validation rules**; they differ in
-where jobs run, which credentials they use, and whether publishing is approval-gated.
+Both modes use the same release-request contract, artifact discovery/validation
+rules, and publication safety checks. They differ only in execution location,
+credential source, and approval requirements.
 
-A private repository must **never** dispatch a build to the central public runner or
-send its source, binary, build logs, or non-public metadata to public-ops. In the
-private mode, public-ops supplies only pinned, reviewed reusable workflow code.
+A private repository must **never** dispatch its build to a public-ops runner
+or send its source, binary, logs, or non-public release metadata to public-ops.
+It uses a **minimal workflow entry point** to invoke the pinned reusable workflow;
+that entry point must not duplicate build commands or asset mappings.
 
-## Planned inputs
+## Inputs and discovery
 
-- [Release request JSON schema](contracts/release-request.schema.json): submitted
-  by an AI agent or workflow to select the target repository, version, and commit.
-- [Project configuration JSON schema](contracts/project-config.schema.json):
-  checked into the **target repository** at `.github/releaser.json` to describe
-  how its build produces the expected release assets.
-- [Example release request](examples/release-request.json).
-- [Example Gradle project configuration](examples/gradle-project-config.json).
+- [Release request JSON schema](contracts/release-request.schema.json):
+  repository, requested version, and immutable source commit SHA.
+- [Example request](examples/release-request.json).
+- [Build and artifact discovery design](docs/discovery.md): infer from Gradle
+  wrapper/project files or Maven POMs and validate distributable JARs.
 - [Architecture and threat model](docs/architecture.md).
 
-The release request is not itself an authorization to publish; Public publishing
-requires a separate GitHub Environment approval. For Private targets, repository
-write permissions govern who can trigger the workflow, with no review step.
+There is intentionally **no `.github/releaser.json`** and no
+`project-config.schema.json`. The AI or workflow specifies only the release
+intent, not a list of binaries to publish.
 
-## Scope and implementation stages
+## Implementation stages
 
-1. **This PR:** document the trust boundaries and versioned JSON contracts.
-2. Core: validate inputs and source SHA, generate/check artifact manifest and
-   checksums, create a draft Release, verify uploads, and publish safely.
-3. Private: add Gradle and Maven reusable workflows, called from the target
-   repository with minimal per-job permissions.
-4. Public: add a central workflow, a required-reviewer environment gate,
-   and target-scoped GitHub App credentials created **after** approval.
-5. End-to-end verification, failure/retry coverage, and consumer setup docs.
+1. **This PR:** document the execution/credential boundaries, release request
+   contract, discovery strategy, and explicitly unsupported cases.
+2. Core: strictly validate inputs/source SHA, resolve build/version and release
+   artifacts, generate checksums, create a draft Release, verify uploaded assets,
+   and publish with safe retries.
+3. Private: Gradle and Maven reusable workflows running in the calling private
+   repository with a minimal entry point and per-job permissions.
+4. Public: central workflow, required-reviewer environment gate, App token
+   scoped to the target repo, and public-visibility enforcement.
+5. End-to-end tests, failure scenarios, and onboarding documentation.
 
-Existing repository-specific publication (for example, Box's Maven/Javadoc hosting)
-is outside the initial GitHub Release scope and must not be silently replaced.
+Existing special-purpose publication, such as Box's Maven repository and
+Javadocs, remains out of scope for the initial GitHub Release implementation.
 
 ## Non-goals of this PR
 
-There is intentionally no executable publishing workflow, GitHub App configuration,
-environment creation, branch protection change, or target-repository modification.
-The JSON schemas define intended inputs; enforcement is implemented and tested in
-the subsequent PRs.
+There is intentionally no executable publishing workflow, GitHub App setup,
+Environment configuration, branch protection change, or modification to target
+repositories. JSON Schema defines intended input structure; its enforcement
+and functional discovery are implemented and tested in the follow-on PRs.
