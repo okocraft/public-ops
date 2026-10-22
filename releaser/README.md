@@ -23,7 +23,9 @@ cannot identify them safely, it fails instead of guessing or attaching all JARs.
 | Per-project Releaser config | **Not required** | **Not required** |
 
 Both modes use the same release-request contract, artifact discovery/validation
-rules, and publication safety checks. They differ only in execution location,
+rules, and publication safety checks.
+An unsupported or ambiguous project layout blocks publication rather than
+requiring every repository to adopt a custom release configuration. They differ only in execution location,
 credential source, and approval requirements.
 
 A private repository must **never** dispatch its build to a public-ops runner
