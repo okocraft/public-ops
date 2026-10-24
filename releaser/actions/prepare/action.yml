@@ -1,0 +1,18 @@
+name: OKOCRAFT Releaser - Prepare
+description: Verify an immutable release request and stage deployable binaries without publication credentials
+inputs:
+  request-file:
+    required: true
+    description: Absolute path to release request JSON
+  workspace:
+    required: true
+    description: Checked out target repository at the exact requested commit
+  bundle-directory:
+    required: true
+    description: New, empty directory for the verified release bundle
+outputs:
+  manifest:
+    description: Path to the generated release manifest
+runs:
+  using: node24
+  main: dist/index.js

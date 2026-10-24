@@ -1,0 +1,15 @@
+name: OKOCRAFT Releaser - Publish
+description: Publish a verified release bundle with a scoped repository token
+inputs:
+  bundle-directory:
+    required: true
+    description: Verified release bundle
+  token:
+    required: true
+    description: Scoped token available only in the publishing job
+outputs:
+  release-url:
+    description: Published, verified GitHub Release URL
+runs:
+  using: node24
+  main: dist/index.js

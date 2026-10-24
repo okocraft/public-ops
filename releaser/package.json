@@ -1,0 +1,30 @@
+{
+  "name": "@okocraft/releaser",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "node scripts/build.mjs",
+    "check": "npm run typecheck && npm test && npm run build:check",
+    "build:check": "npm run build && git diff --exit-code -- releaser/actions/prepare/dist releaser/actions/publish/dist"
+  },
+  "dependencies": {
+    "@actions/core": "^3.0.1",
+    "@actions/github": "^9.1.1",
+    "ajv": "^8.20.0",
+    "yaml": "^2.8.1",
+    "yauzl": "^3.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "@types/yauzl": "^2.10.3",
+    "esbuild": "^0.25.12",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}
