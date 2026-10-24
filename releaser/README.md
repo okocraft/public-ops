@@ -80,45 +80,12 @@ Optional inputs: `ref` (default: the triggering ref), `tag`, `java-version` and 
 The reusable workflow checks out its own releaser code at the same commit
 (`job.workflow_sha`), so the pinned SHA fixes both.
 
-## Release notes
+## Releasing with an agent
 
-Pass `notes` (Markdown) to publish them; without it GitHub generates a list
-of merged PRs. When an agent prepares a release:
-
-1. Read the changes since the previous release tag (commits, merged PRs and
-   the diff), not just PR titles.
-2. Write the notes following the rules below.
-3. Put the draft in the version bump PR description. Merging the PR approves
-   it; pass the merged text as `notes`, e.g.
-   `gh workflow run release.yml -R okocraft/<repo> -f version=<version> -f notes="$(cat notes.md)"`.
-
-Rules:
-
-- English, short and plain. Readers are server operators, not developers.
-- Only what users need: new features, behaviour changes, fixes they would
-  notice, and required actions (config, permissions, supported
-  Minecraft/Java versions).
-- Leave out refactoring, CI, tests and routine dependency updates. Mention a
-  dependency only when it changes compatibility.
-- One line per item, starting with a verb. Use only the sections that have
-  items, in this order: `Breaking changes`, `Added`, `Changed`, `Fixed`.
-- No PR lists, author credits or changelog links.
-- If nothing user-visible changed, write a single line such as
-  `Maintenance release with no user-facing changes.`
-
-```markdown
-### Breaking changes
-
-- Require Paper 26.3 or later.
-
-### Added
-
-- Add `/example toggle` to disable the feature per player.
-
-### Fixed
-
-- Fix messages not being sent across worlds.
-```
+Give [RUNBOOK.md](RUNBOOK.md) to the agent with the repository to release.
+It covers the change review, version choice, test checklist, release notes,
+the version bump PR, running the workflow and verifying the result.
+Without `notes`, GitHub generates a list of merged PRs instead.
 
 ## Discovery rules
 
