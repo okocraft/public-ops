@@ -32,7 +32,7 @@ async function createFixture(kind: 'gradle' | 'maven'): Promise<string> {
     await mkdir(path.join(root, 'build', 'libs'), { recursive: true });
     await writeFile(path.join(root, 'build', 'libs', 'Yaminabe-Paper-0.1.0.jar'), paperZip);
     await writeFile(path.join(root, 'build', 'libs', 'Yaminabe-Velocity-0.1.0.jar'), velocityZip);
-    await writeFile(path.join(root, 'build', 'libs', 'common.jar'), 'plain jar');
+    await writeFile(path.join(root, 'build', 'libs', 'common.jar'), Buffer.from('UEsDBBQAAAAIAOExWF3MOw+pBQAAAAMAAAAZAAAAY29tL2V4YW1wbGUvTGlicmFyeS5jbGFzc8vJTAIAUEsBAhQDFAAAAAgA4TFYXcw7D6kFAAAAAwAAABkAAAAAAAAAAAAAAIABAAAAAGNvbS9leGFtcGxlL0xpYnJhcnkuY2xhc3NQSwUGAAAAAAEAAQBHAAAAPAAAAAAA', 'base64'));
   } else {
     await writeFile(path.join(root, 'pom.xml'),
       '<project xmlns="http://maven.apache.org/POM/4.0.0"><version>0.1.0</version></project>');
