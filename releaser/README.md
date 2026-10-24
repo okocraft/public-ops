@@ -1,7 +1,5 @@
 # Releaser
 
-Status: private repositories are supported; the public workflow is not implemented yet.
-
 Releaser turns "release okocraft/Hugs at 1.5" into a GitHub Release with the
 built binaries attached. Target repositories need **no Releaser configuration
 file**: the existing Gradle or Maven build is the source of truth.
@@ -30,6 +28,29 @@ An existing tag or release for the version is an error; nothing is overwritten.
 | Per-repository setup | None                                                         | A small caller workflow                                         |
 
 Private source, logs and binaries never leave the private repository's run.
+
+## Public repositories
+
+Run `release-public.yml` in public-ops:
+
+```sh
+gh workflow run release-public.yml -R okocraft/public-ops -f repository=<repo> -f version=<version>
+```
+
+Optional inputs: `ref` (default: the default branch), `tag` and `java-version`.
+The build job rejects non-public repositories and lists the assets with
+SHA-256 checksums in the run summary. The publish job waits for approval on
+the `release` environment, then mints a token for the target repository only.
+
+One-time setup (outside this repository's code):
+
+1. Create a GitHub App with repository permission **Contents: Read and write**
+   and install it on the okocraft public repositories to release.
+2. In public-ops, create the `release` environment with required reviewers
+   (prevent self-review, disallow administrators bypassing) and restrict it
+   to the `main` branch.
+3. Add to the `release` environment the variable `RELEASER_APP_CLIENT_ID`
+   and the secret `RELEASER_APP_PRIVATE_KEY`.
 
 ## Private repository setup
 
@@ -89,8 +110,6 @@ cd releaser
 pnpm install
 pnpm run check   # oxfmt --check, oxlint, tsc, node --test
 ```
-
-Planned: the public workflow with environment approval and GitHub App token.
 
 Out of scope: Maven repository publishing, Javadocs and multi-module Maven
 projects.
