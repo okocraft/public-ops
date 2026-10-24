@@ -87,13 +87,38 @@ of merged PRs. When an agent prepares a release:
 
 1. Read the changes since the previous release tag (commits, merged PRs and
    the diff), not just PR titles.
-2. Write notes for server operators: new features, behaviour changes, fixes,
-   and anything requiring action (config or permission changes, minimum
-   Minecraft/Java version). Mention dependency updates only when they matter
-   to users; summarise routine Renovate updates in one line or omit them.
+2. Write the notes following the rules below.
 3. Put the draft in the version bump PR description. Merging the PR approves
    it; pass the merged text as `notes`, e.g.
    `gh workflow run release.yml -R okocraft/<repo> -f version=<version> -f notes="$(cat notes.md)"`.
+
+Rules:
+
+- English, short and plain. Readers are server operators, not developers.
+- Only what users need: new features, behaviour changes, fixes they would
+  notice, and required actions (config, permissions, supported
+  Minecraft/Java versions).
+- Leave out refactoring, CI, tests and routine dependency updates. Mention a
+  dependency only when it changes compatibility.
+- One line per item, starting with a verb. Use only the sections that have
+  items, in this order: `Breaking changes`, `Added`, `Changed`, `Fixed`.
+- No PR lists, author credits or changelog links.
+- If nothing user-visible changed, write a single line such as
+  `Maintenance release with no user-facing changes.`
+
+```markdown
+### Breaking changes
+
+- Require Paper 26.3 or later.
+
+### Added
+
+- Add `/hugs toggle` to disable hugs per player.
+
+### Fixed
+
+- Fix hugs not being sent across worlds.
+```
 
 ## Discovery rules
 
