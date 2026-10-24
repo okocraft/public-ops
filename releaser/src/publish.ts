@@ -26,7 +26,12 @@ export interface ReleaseGateway {
   getRelease(repository: string, tag: string): Promise<RemoteRelease | null>;
   createDraft(manifest: ReleaseManifest): Promise<RemoteRelease>;
   assets(repository: string, releaseId: number): Promise<RemoteAsset[]>;
-  upload(repository: string, releaseId: number, name: string, contents: Buffer): Promise<RemoteAsset>;
+  upload(
+    repository: string,
+    releaseId: number,
+    name: string,
+    contents: Buffer,
+  ): Promise<RemoteAsset>;
   makePublic(repository: string, releaseId: number): Promise<RemoteRelease>;
 }
 
@@ -37,8 +42,7 @@ function splitRepository(repository: string): { owner: string; repo: string } {
 }
 
 function isNotFound(error: unknown): boolean {
-  return typeof error === 'object' && error !== null &&
-    'status' in error && error.status === 404;
+  return typeof error === 'object' && error !== null && 'status' in error && error.status === 404;
 }
 
 export class OctokitReleaseGateway implements ReleaseGateway {
@@ -57,7 +61,8 @@ export class OctokitReleaseGateway implements ReleaseGateway {
   async hasCommit(repository: string, sha: string): Promise<boolean> {
     try {
       const response = await this.client.rest.git.getCommit({
-        ...splitRepository(repository), commit_sha: sha,
+        ...splitRepository(repository),
+        commit_sha: sha,
       });
       return response.data.sha === sha;
     } catch (error) {
@@ -69,9 +74,12 @@ export class OctokitReleaseGateway implements ReleaseGateway {
   async tagCommit(repository: string, tag: string): Promise<string | null> {
     let ref: { type: string; sha: string };
     try {
-      ref = (await this.client.rest.git.getRef({
-        ...splitRepository(repository), ref: 'tags/' + tag,
-      })).data.object;
+      ref = (
+        await this.client.rest.git.getRef({
+          ...splitRepository(repository),
+          ref: 'tags/' + tag,
+        })
+      ).data.object;
     } catch (error) {
       if (isNotFound(error)) return null;
       throw error;
@@ -80,7 +88,8 @@ export class OctokitReleaseGateway implements ReleaseGateway {
       if (ref.type === 'commit') return ref.sha;
       if (ref.type !== 'tag') throw new ReleaseError('Unsupported tag object');
       const response = await this.client.rest.git.getTag({
-        ...splitRepository(repository), tag_sha: ref.sha,
+        ...splitRepository(repository),
+        tag_sha: ref.sha,
       });
       ref = response.data.object;
     }
@@ -89,17 +98,21 @@ export class OctokitReleaseGateway implements ReleaseGateway {
 
   async createTag(repository: string, tag: string, sha: string): Promise<void> {
     await this.client.rest.git.createRef({
-      ...splitRepository(repository), ref: 'refs/tags/' + tag, sha,
+      ...splitRepository(repository),
+      ref: 'refs/tags/' + tag,
+      sha,
     });
   }
 
   async getRelease(repository: string, tag: string): Promise<RemoteRelease | null> {
     try {
       const response = await this.client.rest.repos.getReleaseByTag({
-        ...splitRepository(repository), tag,
+        ...splitRepository(repository),
+        tag,
       });
       return {
-        id: response.data.id, draft: response.data.draft,
+        id: response.data.id,
+        draft: response.data.draft,
         htmlUrl: response.data.html_url,
       };
     } catch (error) {
@@ -110,32 +123,45 @@ export class OctokitReleaseGateway implements ReleaseGateway {
 
   async createDraft(manifest: ReleaseManifest): Promise<RemoteRelease> {
     const response = await this.client.rest.repos.createRelease({
-      ...splitRepository(manifest.repository), tag_name: manifest.tag,
+      ...splitRepository(manifest.repository),
+      tag_name: manifest.tag,
       target_commitish: manifest.target_sha,
-      name: manifest.tag, draft: true, prerelease: isPrerelease(manifest.version),
+      name: manifest.tag,
+      draft: true,
+      prerelease: isPrerelease(manifest.version),
       generate_release_notes: true,
     });
     return {
-      id: response.data.id, draft: response.data.draft,
+      id: response.data.id,
+      draft: response.data.draft,
       htmlUrl: response.data.html_url,
     };
   }
 
   async assets(repository: string, releaseId: number): Promise<RemoteAsset[]> {
     const result = await this.client.paginate(this.client.rest.repos.listReleaseAssets, {
-      ...splitRepository(repository), release_id: releaseId, per_page: 100,
+      ...splitRepository(repository),
+      release_id: releaseId,
+      per_page: 100,
     });
     return result.map((item) => ({
-      name: item.name, state: item.state,
-      size: item.size, digest: item.digest,
+      name: item.name,
+      state: item.state,
+      size: item.size,
+      digest: item.digest,
     }));
   }
 
   async upload(
-    repository: string, releaseId: number, name: string, contents: Buffer,
+    repository: string,
+    releaseId: number,
+    name: string,
+    contents: Buffer,
   ): Promise<RemoteAsset> {
     const response = await this.client.rest.repos.uploadReleaseAsset({
-      ...splitRepository(repository), release_id: releaseId, name,
+      ...splitRepository(repository),
+      release_id: releaseId,
+      name,
       data: contents as unknown as string,
       headers: {
         'content-type': 'application/octet-stream',
@@ -143,28 +169,38 @@ export class OctokitReleaseGateway implements ReleaseGateway {
       },
     });
     return {
-      name: response.data.name, state: response.data.state,
-      size: response.data.size, digest: response.data.digest,
+      name: response.data.name,
+      state: response.data.state,
+      size: response.data.size,
+      digest: response.data.digest,
     };
   }
 
   async makePublic(repository: string, releaseId: number): Promise<RemoteRelease> {
     const response = await this.client.rest.repos.updateRelease({
-      ...splitRepository(repository), release_id: releaseId, draft: false,
+      ...splitRepository(repository),
+      release_id: releaseId,
+      draft: false,
     });
     return { id: response.data.id, draft: response.data.draft, htmlUrl: response.data.html_url };
   }
 }
 
 function verifyRemote(actual: RemoteAsset, expected: ReleaseAsset): void {
-  if (actual.name !== expected.name || actual.state !== 'uploaded' ||
-      actual.size !== expected.size || actual.digest !== 'sha256:' + expected.sha256) {
+  if (
+    actual.name !== expected.name ||
+    actual.state !== 'uploaded' ||
+    actual.size !== expected.size ||
+    actual.digest !== 'sha256:' + expected.sha256
+  ) {
     throw new ReleaseError('Remote release asset digest mismatch: ' + expected.name);
   }
 }
 
 async function verifyAssets(
-  gateway: ReleaseGateway, manifest: ReleaseManifest, id: number,
+  gateway: ReleaseGateway,
+  manifest: ReleaseManifest,
+  id: number,
 ): Promise<Map<string, RemoteAsset>> {
   const remote = await gateway.assets(manifest.repository, id);
   const byName = new Map<string, RemoteAsset>();
@@ -180,20 +216,24 @@ async function verifyAssets(
 }
 
 export async function publishBundle(
-  bundle: string, gateway: ReleaseGateway, mode: 'public' | 'private',
+  bundle: string,
+  gateway: ReleaseGateway,
+  mode: 'public' | 'private',
   callingRepository?: string,
 ): Promise<string> {
   const manifest = await verifyBundle(bundle);
   const repository = manifest.repository;
   const identity = await gateway.getRepository(repository);
-  if (identity.fullName.toLowerCase() !== repository.toLowerCase() ||
-      identity.private !== (mode === 'private')) {
+  if (
+    identity.fullName.toLowerCase() !== repository.toLowerCase() ||
+    identity.private !== (mode === 'private')
+  ) {
     throw new ReleaseError('Target visibility or repository identity mismatch');
   }
   if (mode === 'private' && callingRepository?.toLowerCase() !== repository.toLowerCase()) {
     throw new ReleaseError('Private publish must execute in the target repository');
   }
-  if (!await gateway.hasCommit(repository, manifest.target_sha)) {
+  if (!(await gateway.hasCommit(repository, manifest.target_sha))) {
     throw new ReleaseError('Requested commit does not exist in target repository');
   }
   const existingTag = await gateway.tagCommit(repository, manifest.tag);
@@ -206,7 +246,7 @@ export async function publishBundle(
   }
   if (existingTag === null) {
     await gateway.createTag(repository, manifest.tag, manifest.target_sha);
-    if (await gateway.tagCommit(repository, manifest.tag) !== manifest.target_sha) {
+    if ((await gateway.tagCommit(repository, manifest.tag)) !== manifest.target_sha) {
       throw new ReleaseError('Created tag does not match requested commit');
     }
   }
@@ -232,14 +272,17 @@ export async function publishBundle(
     if (!actual) throw new ReleaseError('Required asset missing: ' + asset.name);
     verifyRemote(actual, asset);
   }
-  if (await gateway.tagCommit(repository, manifest.tag) !== manifest.target_sha) {
+  if ((await gateway.tagCommit(repository, manifest.tag)) !== manifest.target_sha) {
     throw new ReleaseError('Tag changed during publication');
   }
   const published = await gateway.makePublic(repository, release.id);
   if (published.draft) throw new ReleaseError('Release remains draft after publishing');
   const checked = await gateway.getRelease(repository, manifest.tag);
-  if (!checked || checked.draft ||
-      await gateway.tagCommit(repository, manifest.tag) !== manifest.target_sha) {
+  if (
+    !checked ||
+    checked.draft ||
+    (await gateway.tagCommit(repository, manifest.tag)) !== manifest.target_sha
+  ) {
     throw new ReleaseError('Could not verify published Release');
   }
   const uploaded = await verifyAssets(gateway, manifest, release.id);

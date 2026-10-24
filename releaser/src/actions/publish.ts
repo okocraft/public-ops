@@ -10,7 +10,10 @@ async function main(): Promise<void> {
     throw new Error('Publishing mode must be public or private');
   }
   const url = await publishBundle(
-    bundle, new OctokitReleaseGateway(token), mode, process.env.GITHUB_REPOSITORY,
+    bundle,
+    new OctokitReleaseGateway(token),
+    mode,
+    process.env.GITHUB_REPOSITORY,
   );
   core.setOutput('release-url', url);
   core.info('Published and verified release: ' + url);

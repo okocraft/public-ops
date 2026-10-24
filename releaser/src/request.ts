@@ -6,8 +6,10 @@ const validate = new Ajv2020({ allErrors: true }).compile(schema);
 
 export function parseRequest(input: unknown): ReleaseRequest {
   if (!validate(input)) {
-    throw new ReleaseError('Invalid release request: ' +
-      (validate.errors?.map((error) => error.message).join('; ') ?? ''));
+    throw new ReleaseError(
+      'Invalid release request: ' +
+        (validate.errors?.map((error) => error.message).join('; ') ?? ''),
+    );
   }
   return input as unknown as ReleaseRequest;
 }

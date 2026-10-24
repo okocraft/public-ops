@@ -35359,7 +35359,9 @@ var init_types = __esm({
 // src/request.ts
 function parseRequest(input) {
   if (!validate2(input)) {
-    throw new ReleaseError("Invalid release request: " + (validate2.errors?.map((error2) => error2.message).join("; ") ?? ""));
+    throw new ReleaseError(
+      "Invalid release request: " + (validate2.errors?.map((error2) => error2.message).join("; ") ?? "")
+    );
   }
   return input;
 }
@@ -35415,7 +35417,15 @@ async function inspectAsset(filename) {
 }
 function parseManifest(input) {
   const data = asRecord(input);
-  const fields = ["schema_version", "repository", "version", "target_sha", "tag", "build_tool", "assets"];
+  const fields = [
+    "schema_version",
+    "repository",
+    "version",
+    "target_sha",
+    "tag",
+    "build_tool",
+    "assets"
+  ];
   if (Object.keys(data).sort().join(",") !== fields.sort().join(",")) {
     throw new ReleaseError("Missing or unsupported manifest fields");
   }
@@ -40136,7 +40146,9 @@ async function readVersion(root, tool) {
     return versions[0];
   }
   const source = await readFile2(path2.join(root, "pom.xml"), "utf8");
-  const parsed = new XMLParser({ ignoreAttributes: false, processEntities: false }).parse(source);
+  const parsed = new XMLParser({ ignoreAttributes: false, processEntities: false }).parse(
+    source
+  );
   if (parsed === null || typeof parsed !== "object" || !("project" in parsed)) {
     throw new ReleaseError("Invalid Maven pom.xml");
   }
@@ -40157,79 +40169,86 @@ function expectedPlatforms(settings) {
 }
 async function pluginMetadata(filename) {
   return new Promise((resolve, reject) => {
-    import_yauzl.default.open(filename, { lazyEntries: true, autoClose: true, validateEntrySizes: true }, (error2, zip) => {
-      if (error2 || !zip) {
-        reject(new ReleaseError("Invalid ZIP archive"));
-        return;
-      }
-      let discovered = null;
-      let settled = false;
-      function fail(error3) {
-        if (settled) return;
-        settled = true;
-        zip?.close();
-        reject(error3);
-      }
-      zip.once("error", (error3) => fail(error3));
-      zip.once("end", () => {
-        if (!settled) {
+    import_yauzl.default.open(
+      filename,
+      { lazyEntries: true, autoClose: true, validateEntrySizes: true },
+      (error2, zip) => {
+        if (error2 || !zip) {
+          reject(new ReleaseError("Invalid ZIP archive"));
+          return;
+        }
+        let discovered = null;
+        let settled = false;
+        function fail(error3) {
+          if (settled) return;
           settled = true;
-          resolve(discovered);
+          zip?.close();
+          reject(error3);
         }
-      });
-      zip.on("entry", (entry) => {
-        const name = entry.fileName;
-        const relevant = name === "paper-plugin.yml" || name === "plugin.yml" || name === "velocity-plugin.json";
-        if (!relevant) {
-          zip.readEntry();
-          return;
-        }
-        if (entry.uncompressedSize > 1024 * 1024) {
-          fail(new ReleaseError("Oversized plugin metadata in " + path2.basename(filename)));
-          return;
-        }
-        zip.openReadStream(entry, (streamError, stream) => {
-          if (streamError || !stream) {
-            fail(new ReleaseError("Cannot read JAR metadata"));
+        zip.once("error", (error3) => fail(error3));
+        zip.once("end", () => {
+          if (!settled) {
+            settled = true;
+            resolve(discovered);
+          }
+        });
+        zip.on("entry", (entry) => {
+          const name = entry.fileName;
+          const relevant = name === "paper-plugin.yml" || name === "plugin.yml" || name === "velocity-plugin.json";
+          if (!relevant) {
+            zip.readEntry();
             return;
           }
-          const chunks = [];
-          let total = 0;
-          stream.on("data", (data) => {
-            total += data.length;
-            if (total > 1024 * 1024) {
-              stream.destroy(new ReleaseError("Plugin metadata exceeds size limit"));
-            } else {
-              chunks.push(data);
+          if (entry.uncompressedSize > 1024 * 1024) {
+            fail(new ReleaseError("Oversized plugin metadata in " + path2.basename(filename)));
+            return;
+          }
+          zip.openReadStream(entry, (streamError, stream) => {
+            if (streamError || !stream) {
+              fail(new ReleaseError("Cannot read JAR metadata"));
+              return;
             }
-          });
-          stream.once("error", fail);
-          stream.once("end", () => {
-            if (settled) return;
-            try {
-              const raw = Buffer.concat(chunks).toString("utf8");
-              const parsed = name === "velocity-plugin.json" ? JSON.parse(raw) : (0, import_yaml.parse)(raw);
-              if (parsed === null || typeof parsed !== "object" || !("version" in parsed) || typeof parsed.version !== "string") {
-                throw new ReleaseError("Missing plugin version in " + name);
+            const chunks = [];
+            let total = 0;
+            stream.on("data", (data) => {
+              total += data.length;
+              if (total > 1024 * 1024) {
+                stream.destroy(new ReleaseError("Plugin metadata exceeds size limit"));
+              } else {
+                chunks.push(data);
               }
-              const platform2 = name === "velocity-plugin.json" ? "velocity" : "paper";
-              if (discovered && discovered.platform !== platform2) {
-                throw new ReleaseError("Ambiguous plugin metadata in " + filename);
+            });
+            stream.once("error", fail);
+            stream.once("end", () => {
+              if (settled) return;
+              try {
+                const raw = Buffer.concat(chunks).toString("utf8");
+                const parsed = name === "velocity-plugin.json" ? JSON.parse(raw) : (0, import_yaml.parse)(raw);
+                if (parsed === null || typeof parsed !== "object" || !("version" in parsed) || typeof parsed.version !== "string") {
+                  throw new ReleaseError("Missing plugin version in " + name);
+                }
+                const platform2 = name === "velocity-plugin.json" ? "velocity" : "paper";
+                if (discovered && discovered.platform !== platform2) {
+                  throw new ReleaseError("Ambiguous plugin metadata in " + filename);
+                }
+                discovered = { platform: platform2, version: parsed.version };
+                zip.readEntry();
+              } catch (error3) {
+                fail(error3 instanceof Error ? error3 : new ReleaseError("Invalid plugin metadata"));
               }
-              discovered = { platform: platform2, version: parsed.version };
-              zip.readEntry();
-            } catch (error3) {
-              fail(error3 instanceof Error ? error3 : new ReleaseError("Invalid plugin metadata"));
-            }
+            });
           });
         });
-      });
-      zip.readEntry();
-    });
+        zip.readEntry();
+      }
+    );
   });
 }
 async function discoverBinaries(root, tool, version) {
-  const dirs = tool === "gradle" ? [path2.join(root, "build", "libs")] : [path2.join(root, "target"), ...(await readdir3(root, { withFileTypes: true })).filter((entry) => entry.isDirectory()).map((entry) => path2.join(root, entry.name, "target"))];
+  const dirs = tool === "gradle" ? [path2.join(root, "build", "libs")] : [
+    path2.join(root, "target"),
+    ...(await readdir3(root, { withFileTypes: true })).filter((entry) => entry.isDirectory()).map((entry) => path2.join(root, entry.name, "target"))
+  ];
   const binaries = [];
   const platforms = /* @__PURE__ */ new Set();
   const names = /* @__PURE__ */ new Set();
@@ -40243,7 +40262,8 @@ async function discoverBinaries(root, tool, version) {
       throw error2;
     }
     for (const name of filenames.sort()) {
-      if (!name.endsWith(".jar") || /-(?:plain|sources|javadoc|tests?|test-fixtures)\.jar$/i.test(name)) continue;
+      if (!name.endsWith(".jar") || /-(?:plain|sources|javadoc|tests?|test-fixtures)\.jar$/i.test(name))
+        continue;
       const full = path2.join(dir, name);
       if (!(await realpath2(full)).startsWith(resolvedRoot + path2.sep)) {
         throw new ReleaseError("Unsafe JAR location");
@@ -40261,7 +40281,8 @@ async function discoverBinaries(root, tool, version) {
       binaries.push(full);
     }
   }
-  if (!binaries.length || binaries.length > MAX_ASSETS) throw new ReleaseError("No safe distribution JARs");
+  if (!binaries.length || binaries.length > MAX_ASSETS)
+    throw new ReleaseError("No safe distribution JARs");
   if (tool === "gradle") {
     let settings = "";
     for (const filename of ["settings.gradle.kts", "settings.gradle"]) {

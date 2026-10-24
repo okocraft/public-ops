@@ -25,7 +25,11 @@ async function fixture(): Promise<string> {
     build_tool: 'gradle',
     assets: [
       { name: 'Paper.jar', size: 14, sha256: digest },
-      { name: 'checksums.txt', size: Buffer.byteLength(checksums), sha256: await sha256(path.join(bundle, 'checksums.txt')) },
+      {
+        name: 'checksums.txt',
+        size: Buffer.byteLength(checksums),
+        sha256: await sha256(path.join(bundle, 'checksums.txt')),
+      },
     ],
   };
   await writeFile(path.join(bundle, 'manifest.json'), JSON.stringify(manifest));
@@ -49,7 +53,9 @@ describe('manifest integrity', () => {
   });
   it('refuses manifest-injected traversal or additional fields', async () => {
     const bundle = await fixture();
-    const manifest = JSON.parse(await readFile(path.join(bundle, 'manifest.json'), 'utf8')) as { assets: Array<{name: string}> };
+    const manifest = JSON.parse(await readFile(path.join(bundle, 'manifest.json'), 'utf8')) as {
+      assets: Array<{ name: string }>;
+    };
     manifest.assets[0]!.name = '../outside';
     expect(() => parseManifest(manifest)).toThrow();
   });

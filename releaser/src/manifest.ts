@@ -29,8 +29,12 @@ export async function inspectAsset(filename: string): Promise<ReleaseAsset> {
   if (!namePattern.test(name) || name === 'checksums.txt' || name === 'manifest.json') {
     throw new ReleaseError('Unsafe binary name: ' + name);
   }
-  if (!stats.isFile() || stats.isSymbolicLink() || stats.size === 0 ||
-      stats.size > MAX_ASSET_BYTES) {
+  if (
+    !stats.isFile() ||
+    stats.isSymbolicLink() ||
+    stats.size === 0 ||
+    stats.size > MAX_ASSET_BYTES
+  ) {
     throw new ReleaseError('Invalid asset size or type: ' + name);
   }
   return { name, size: stats.size, sha256: await sha256(filename) };
@@ -38,7 +42,15 @@ export async function inspectAsset(filename: string): Promise<ReleaseAsset> {
 
 export function parseManifest(input: unknown): ReleaseManifest {
   const data = asRecord(input);
-  const fields = ['schema_version','repository','version','target_sha','tag','build_tool','assets'];
+  const fields = [
+    'schema_version',
+    'repository',
+    'version',
+    'target_sha',
+    'tag',
+    'build_tool',
+    'assets',
+  ];
   if (Object.keys(data).sort().join(',') !== fields.sort().join(',')) {
     throw new ReleaseError('Missing or unsupported manifest fields');
   }
@@ -48,22 +60,34 @@ export function parseManifest(input: unknown): ReleaseManifest {
     version: data.version,
     target_sha: data.target_sha,
   });
-  if (data.tag !== tagFor(request) || (data.build_tool !== 'gradle' && data.build_tool !== 'maven')) {
+  if (
+    data.tag !== tagFor(request) ||
+    (data.build_tool !== 'gradle' && data.build_tool !== 'maven')
+  ) {
     throw new ReleaseError('Manifest tag or build tool disagrees with request');
   }
-  if (!Array.isArray(data.assets) || data.assets.length < 2 ||
-      data.assets.length > MAX_ASSETS + 1) {
+  if (
+    !Array.isArray(data.assets) ||
+    data.assets.length < 2 ||
+    data.assets.length > MAX_ASSETS + 1
+  ) {
     throw new ReleaseError('Invalid manifest asset count');
   }
   const assets: ReleaseAsset[] = [];
   const seen = new Set<string>();
   for (const item of data.assets) {
     const asset = asRecord(item);
-    if (Object.keys(asset).sort().join(',') !== 'name,sha256,size' ||
-        typeof asset.name !== 'string' || !namePattern.test(asset.name) ||
-        typeof asset.size !== 'number' || !Number.isSafeInteger(asset.size) ||
-        asset.size < 1 || asset.size > MAX_ASSET_BYTES ||
-        typeof asset.sha256 !== 'string' || !digestPattern.test(asset.sha256)) {
+    if (
+      Object.keys(asset).sort().join(',') !== 'name,sha256,size' ||
+      typeof asset.name !== 'string' ||
+      !namePattern.test(asset.name) ||
+      typeof asset.size !== 'number' ||
+      !Number.isSafeInteger(asset.size) ||
+      asset.size < 1 ||
+      asset.size > MAX_ASSET_BYTES ||
+      typeof asset.sha256 !== 'string' ||
+      !digestPattern.test(asset.sha256)
+    ) {
       throw new ReleaseError('Invalid manifest asset');
     }
     if (seen.has(asset.name.toLowerCase())) throw new ReleaseError('Duplicate asset name');
@@ -91,13 +115,19 @@ export async function verifyBundle(bundle: string): Promise<ReleaseManifest> {
   for (const asset of manifest.assets) {
     const filename = path.join(root, asset.name);
     const stats = await lstat(filename);
-    if (!stats.isFile() || stats.isSymbolicLink() ||
-        stats.size !== asset.size || (await sha256(filename)) !== asset.sha256) {
+    if (
+      !stats.isFile() ||
+      stats.isSymbolicLink() ||
+      stats.size !== asset.size ||
+      (await sha256(filename)) !== asset.sha256
+    ) {
       throw new ReleaseError('Asset digest mismatch: ' + asset.name);
     }
   }
-  const expectedChecksums = manifest.assets.slice(0, -1)
-    .map((asset) => asset.sha256 + '  ' + asset.name + '\n').join('');
+  const expectedChecksums = manifest.assets
+    .slice(0, -1)
+    .map((asset) => asset.sha256 + '  ' + asset.name + '\n')
+    .join('');
   if ((await readFile(path.join(root, 'checksums.txt'), 'utf8')) !== expectedChecksums) {
     throw new ReleaseError('Checksum manifest mismatch');
   }

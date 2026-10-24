@@ -32108,7 +32108,9 @@ var ReleaseError = class extends Error {
 var validate = new import__.default({ allErrors: true }).compile(release_request_schema_default);
 function parseRequest(input) {
   if (!validate(input)) {
-    throw new ReleaseError("Invalid release request: " + (validate.errors?.map((error2) => error2.message).join("; ") ?? ""));
+    throw new ReleaseError(
+      "Invalid release request: " + (validate.errors?.map((error2) => error2.message).join("; ") ?? "")
+    );
   }
   return input;
 }
@@ -32141,7 +32143,15 @@ async function sha256(filename) {
 }
 function parseManifest(input) {
   const data = asRecord(input);
-  const fields = ["schema_version", "repository", "version", "target_sha", "tag", "build_tool", "assets"];
+  const fields = [
+    "schema_version",
+    "repository",
+    "version",
+    "target_sha",
+    "tag",
+    "build_tool",
+    "assets"
+  ];
   if (Object.keys(data).sort().join(",") !== fields.sort().join(",")) {
     throw new ReleaseError("Missing or unsupported manifest fields");
   }

@@ -8,6 +8,8 @@ for (const action of ['prepare', 'publish']) {
     target: 'node24',
     format: 'esm',
     legalComments: 'none',
-    banner: { js: "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);" },
+    banner: {
+      js: "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);",
+    },
   });
 }
