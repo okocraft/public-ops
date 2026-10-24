@@ -23,9 +23,15 @@ jobs:
       - name: Install dependencies without lifecycle scripts
         working-directory: releaser
         run: npm install --ignore-scripts --no-audit
+      - name: Format source with Prettier
+        working-directory: releaser
+        run: npm run format
       - name: Typecheck
         working-directory: releaser
         run: npm run typecheck
+      - name: Lint
+        working-directory: releaser
+        run: npm run lint
       - name: Unit tests
         working-directory: releaser
         run: npm test
@@ -36,7 +42,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          git add releaser/package-lock.json releaser/actions/prepare/dist/index.js releaser/actions/publish/dist/index.js
+          git add releaser/package-lock.json releaser/actions/prepare/dist/index.js releaser/actions/publish/dist/index.js releaser/src releaser/tests releaser/scripts releaser/package.json releaser/tsconfig.json releaser/actions/prepare/action.yml releaser/actions/publish/action.yml releaser/.prettierrc.json
           if ! git diff --cached --quiet; then
             git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'build(releaser): lock dependencies and bundle node24 actions'
             auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w 0)"
