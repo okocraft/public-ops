@@ -87,7 +87,11 @@ async function runOne(
   const recorder = new Recorder();
   const env = new E2eEnv(envOptions);
   try {
-    await env.start({ fresh: true, setupCommands: scenario.setupCommands ?? [] });
+    await env.start({
+      fresh: true,
+      setupCommands: scenario.setupCommands ?? [],
+      files: scenario.files ?? {},
+    });
     await env.join(...(scenario.bots ?? []));
     await scenario.run(env, recorder);
   } catch (error) {

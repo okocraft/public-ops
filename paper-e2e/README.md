@@ -57,6 +57,10 @@ Scenarios change permissions with `env.permission(player, node, "true" | "false"
   packets, so add e.g. `world_particles|sound_effect` to observe effects); `locale` is the client locale.
 - **Sneaking**: `bot.useEntity(entityId, { sneaking: true })` sends the interact packet with an explicit
   sneaking flag. mineflayer's `activateEntity` always sends `sneaking: false`.
+- **Packets for every bot**: `run --record-packets 'world_particles|sound_effect'` (or `E2eEnvOptions.recordPackets`) sets the default; a bot with its own `recordPackets` keeps it.
+- **Per-scenario files**: `files: { "plugins/MyPlugin/config.yml": "..." }` in a scenario is written after the reset and before the server starts (configuration that differs per scenario).
+- **Worlds and blocks**: `env.teleport(name, x, y, z, { world })`, `env.inWorld(world, command)`, `env.setBlock(...)` and `env.fill(...)` wrap `execute in`, `setblock` and `fill` and return the server's answer. These console commands do **not** fire player events such as `BlockBreakEvent`; trigger those with a bot.
+- **World generation**: the test server uses a fixed seed and `generate-structures=false`, so a flat world has no random structures.
 - **Report columns**: `recorder.check(id, title, ok, evidence, covers, { executed, expected })` fills the
   report's Executed and Expected columns (`-` when omitted).
 - **Known log noise**: `server.errors()` returns `ERROR`/`FATAL` lines without `KNOWN_SERVER_NOISE`
