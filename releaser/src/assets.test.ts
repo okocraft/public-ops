@@ -28,4 +28,20 @@ describe("selectAssets", () => {
   it("fails when nothing is left", () => {
     assert.throws(() => selectAssets(["original-Hugs-1.4.jar", "classes"]));
   });
+
+  it("drops the plain Maven JAR when a shaded JAR has its own name", () => {
+    assert.deepEqual(selectAssets(["tfly-1.5.jar", "TFly-1.5.jar"], "tfly-1.5.jar"), [
+      "TFly-1.5.jar",
+    ]);
+  });
+
+  it("keeps the Maven primary JAR when it is the only candidate", () => {
+    assert.deepEqual(selectAssets(["Hugs-1.4.jar", "original-Hugs-1.4.jar"], "Hugs-1.4.jar"), [
+      "Hugs-1.4.jar",
+    ]);
+  });
+
+  it("fails when several Maven JARs remain", () => {
+    assert.throws(() => selectAssets(["a-1.0.jar", "b-1.0.jar", "c-1.0.jar"], "a-1.0.jar"));
+  });
 });

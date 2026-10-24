@@ -18,6 +18,7 @@ describe("detectBuildTool", () => {
     const tool = detectBuildTool(project("gradlew", "settings.gradle.kts"));
     assert.equal(tool.name, "gradle");
     assert.equal(tool.outputDir, join("build", "libs"));
+    assert.equal(tool.finalName, undefined);
   });
 
   it("detects Maven and prefers its wrapper", () => {

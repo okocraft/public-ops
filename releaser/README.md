@@ -40,7 +40,8 @@ Private source, logs and binaries never leave the private repository's run.
   - Gradle: `build/libs/*.jar` in the root project (where the `bundler`
     plugin's `copyToRootBuildDirectory` collects distributables).
   - Maven: `target/*.jar`, excluding `original-*` (shade) and the `sources`,
-    `javadoc` and `tests` classifiers.
+    `javadoc` and `tests` classifiers. Exactly one JAR must remain; the plain
+    `<finalName>.jar` is dropped when a shaded JAR is written under another name.
   - No candidates fails the release.
 - **Tag:** follows the repository's existing tags (`v1.2.3` or `1.2.3`);
   `v<version>` when there are no tags. It can be overridden by an input.

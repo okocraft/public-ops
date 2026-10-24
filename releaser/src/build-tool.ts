@@ -13,6 +13,8 @@ export interface BuildTool {
   readonly version: Command;
   readonly parseVersion: (stdout: string) => string;
   readonly build: Command;
+  /** Prints the base name of the primary JAR when the build has a single distributable. */
+  readonly finalName?: Command;
   /** Directory, relative to the project, containing the built binaries. */
   readonly outputDir: string;
 }
@@ -37,6 +39,12 @@ function maven(projectDir: string): BuildTool {
     version: mvn("--quiet", "help:evaluate", "-Dexpression=project.version", "-DforceStdout"),
     parseVersion: (stdout) => stdout.trim(),
     build: mvn("package"),
+    finalName: mvn(
+      "--quiet",
+      "help:evaluate",
+      "-Dexpression=project.build.finalName",
+      "-DforceStdout",
+    ),
     outputDir: "target",
   };
 }

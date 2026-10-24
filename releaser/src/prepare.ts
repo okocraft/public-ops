@@ -51,12 +51,14 @@ if (projectVersion !== version) {
   throw new Error(`Project version is ${projectVersion}, but ${version} was requested`);
 }
 
+const primaryJar = tool.finalName === undefined ? undefined : `${run(tool.finalName).trim()}.jar`;
+
 const tag = resolveTag(version, listRemoteTags(), tagOverride === "" ? undefined : tagOverride);
 console.log(`Tag: ${tag}`);
 
 execFileSync(tool.build.file, tool.build.args, { stdio: "inherit" });
 
-const assets = selectAssets(readdirSync(tool.outputDir));
+const assets = selectAssets(readdirSync(tool.outputDir), primaryJar);
 mkdirSync(outDir, { recursive: true });
 for (const asset of assets) {
   copyFileSync(join(tool.outputDir, asset), join(outDir, asset));
