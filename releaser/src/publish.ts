@@ -67,7 +67,7 @@ export class OctokitReleaseGateway implements ReleaseGateway {
   }
 
   async tagCommit(repository: string, tag: string): Promise<string | null> {
-    let ref;
+    let ref: { type: string; sha: string };
     try {
       ref = (await this.client.rest.git.getRef({
         ...splitRepository(repository), ref: 'tags/' + tag,
