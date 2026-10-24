@@ -1,0 +1,29 @@
+name: Paper E2E harness check
+on:
+  push:
+    branches: [main]
+    paths: [paper-e2e/harness/**, .github/workflows/paper-e2e-harness-check.yml]
+  pull_request:
+    paths: [paper-e2e/harness/**, .github/workflows/paper-e2e-harness-check.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: paper-e2e/harness
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        with:
+          working-directory: paper-e2e/harness
+          runtime: node@24
+          cache: true
+          save-cache: ${{ github.ref == 'refs/heads/main' }}
+          require-lockfile: true
+      - run: pnpm run check

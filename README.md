@@ -14,6 +14,7 @@ It serves as a central place to organize, maintain, and share automation resourc
 - **Scripts** — Utility scripts for operational tasks
 - **Tools** — Reusable tools and integrations
 - **[Releaser](releaser/README.md)** — Planned GitHub Release automation for Gradle/Maven projects
+- **[Paper E2E](paper-e2e/README.md)** — Harness and helper plugin for end-to-end tests of Paper plugins with real protocol clients
 
 ## Guidelines
 

@@ -1,0 +1,28 @@
+{
+  "name": "@okocraft/paper-e2e-harness",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "pnpm run fmt:check && pnpm run lint && pnpm run typecheck && pnpm run test",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check",
+    "lint": "oxlint --deny-warnings",
+    "typecheck": "tsc",
+    "test": "node --test \"src/**/*.test.ts\"",
+    "prepare-env": "node src/cli.ts prepare",
+    "e2e": "node src/cli.ts run"
+  },
+  "dependencies": {
+    "mineflayer": "4.39.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "oxfmt": "0.74.0",
+    "oxlint": "1.89.0",
+    "typescript": "7.0.2"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@12.15.0"
+}

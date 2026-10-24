@@ -1,0 +1,19 @@
+name: Paper E2E helper plugin build
+on:
+  push:
+    branches: [main]
+    paths: [paper-e2e/helper-plugin/**, .github/workflows/paper-e2e-helper-build.yml]
+  pull_request:
+    paths: [paper-e2e/helper-plugin/**, .github/workflows/paper-e2e-helper-build.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    uses: okocraft/workflows/.github/workflows/gradle.yml@v1
+    with:
+      java-version: '25'
+      working-dir: paper-e2e/helper-plugin
+      artifact-directory: paper-e2e/helper-plugin/build
+      package-name: E2EHelper-Build-${{ github.run_number }}
