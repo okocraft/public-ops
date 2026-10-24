@@ -40,6 +40,12 @@ export function serverProperties(overrides: Record<string, string> = {}): string
     .join("\n");
 }
 
+/**
+ * Server log lines that look like errors but appear on every start of a healthy server.
+ * {@link PaperServer.errors} skips them so that an error scan does not report them.
+ */
+export const KNOWN_SERVER_NOISE: readonly RegExp[] = [/No key layers in MapLike\[\{\}\]/];
+
 export interface PaperServerOptions {
   /** Directory containing `paper.jar` (or the jar named by `jar`). */
   readonly dir: string;
@@ -110,6 +116,14 @@ export class PaperServer {
     this.command(command);
     await sleep(waitMs);
     return this.since(mark);
+  }
+
+  /** `ERROR` / `FATAL` log lines (after `from`) that are not {@link KNOWN_SERVER_NOISE}. */
+  errors(from = 0): string[] {
+    return this.lines
+      .slice(from)
+      .filter((line) => /\b(ERROR|FATAL)\b/.test(line))
+      .filter((line) => !KNOWN_SERVER_NOISE.some((noise) => noise.test(line)));
   }
 
   mark(): number {

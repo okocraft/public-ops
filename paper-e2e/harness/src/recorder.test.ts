@@ -21,3 +21,14 @@ describe("Recorder", () => {
     assert.match(recorder.toMarkdown(), /a\\\|b/);
   });
 });
+
+describe("Recorder report columns", () => {
+  it("renders executed and expected, or a dash", () => {
+    const recorder = new Recorder();
+    recorder.check("A", "a", true, "seen", [], { executed: "kill A", expected: "1 message" });
+    recorder.check("B", "b", true, "seen");
+    const [, , first, second] = recorder.toMarkdown().split("\n");
+    assert.match(first ?? "", /\| kill A \| 1 message \| seen \|/);
+    assert.match(second ?? "", /\| - \| - \| seen \|/);
+  });
+});

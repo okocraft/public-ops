@@ -1,3 +1,4 @@
+import type { BotSpec } from "./bot.ts";
 import type { E2eEnv } from "./env.ts";
 import { Recorder } from "./recorder.ts";
 
@@ -10,8 +11,8 @@ export interface Scenario {
   readonly title: string;
   /** Viewpoint / behavior IDs exercised by this scenario, copied from TESTING.md. */
   readonly covers?: readonly string[];
-  /** Bots that must be connected before `run`. */
-  readonly bots?: readonly string[];
+  /** Bots that must be connected before `run`: names, or objects with `recordPackets` / `locale`. */
+  readonly bots?: readonly BotSpec[];
   /** Console commands to run after the server starts. */
   readonly setupCommands?: readonly string[];
   run(env: E2eEnv, recorder: Recorder): Promise<void>;

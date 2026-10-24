@@ -43,5 +43,21 @@ node src/cli.ts run --dir .e2e/server --minecraft 26.3 --java /path/to/java exam
 Scenarios change permissions with `env.permission(player, node, "true" | "false" | "unset")`, which runs
 `lp user <player> permission ...` (requires `--plugin luckperms`).
 
-`run` writes `report.md` and `results.json` to `.e2e/report` and exits non-zero when a check fails.
+`run` writes `report.md`, `results.json` and one console log per scenario (`logs/<scenario id>.log`) to
+`.e2e/report` and exits non-zero when a check fails.
 `NODE_USE_ENV_PROXY=1` is only needed behind an HTTP proxy (it makes Node's `fetch` honour `HTTPS_PROXY`).
+
+## Scenario options
+
+- **Clean state**: every scenario starts with fresh worlds. Plugin data and server files are kept unless
+  listed with `--reset <path>` (relative to the server directory, repeatable), e.g.
+  `--reset plugins/MyPlugin --reset ops.json --reset usercache.json --reset plugins/LuckPerms`.
+- **Bots**: `bots` in a scenario (and `env.join`) accept names or `{ username, recordPackets, locale }`.
+  `recordPackets` is a regular expression on packet names (the default keeps only death and merchant
+  packets, so add e.g. `world_particles|sound_effect` to observe effects); `locale` is the client locale.
+- **Sneaking**: `bot.useEntity(entityId, { sneaking: true })` sends the interact packet with an explicit
+  sneaking flag. mineflayer's `activateEntity` always sends `sneaking: false`.
+- **Report columns**: `recorder.check(id, title, ok, evidence, covers, { executed, expected })` fills the
+  report's Executed and Expected columns (`-` when omitted).
+- **Known log noise**: `server.errors()` returns `ERROR`/`FATAL` lines without `KNOWN_SERVER_NOISE`
+  (for example `No key layers in MapLike[{}]`, which a healthy server prints on every start).
