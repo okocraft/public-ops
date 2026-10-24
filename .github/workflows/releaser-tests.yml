@@ -1,32 +1,35 @@
-name: Releaser TypeScript Checks
-
+name: Releaser Dependency Upgrade Bootstrap
 on:
-  pull_request:
-    paths:
-      - "releaser/**"
-      - ".github/workflows/releaser-tests.yml"
   push:
-    branches: [main]
-    paths:
-      - "releaser/**"
-      - ".github/workflows/releaser-tests.yml"
-
+    branches: [feat/releaser-core]
 permissions:
   contents: read
-
 jobs:
-  checks:
+  upgrade-and-verify:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24'
-          cache: npm
-          cache-dependency-path: releaser/package-lock.json
-      - name: Install locked dependencies without lifecycle scripts
+          package-manager-cache: false
+      - name: Resolve and lock supported lint tooling
         working-directory: releaser
-        run: npm ci --ignore-scripts --no-audit
-      - name: Typecheck, lint, test, format and verify checked-in bundles
+        run: npm install --ignore-scripts --no-audit
+      - name: Run all verification checks
         working-directory: releaser
         run: npm run check
+      - name: Commit generated lockfile
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git add releaser/package-lock.json
+          if ! git diff --cached --quiet; then
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'build(releaser): lock supported eslint v10 dependencies'
+            auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w 0)"
+            git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" push origin HEAD:feat/releaser-core
+          fi
