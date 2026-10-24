@@ -160,9 +160,11 @@ Tasks:
    `fixed`, `internal` (refactoring, CI, tests, routine dependency updates).
    A dependency update is not `internal` when it changes the supported
    server or Java versions.
-   Exception: raising the required Java version (for example 21 → 25) is
+   Exception: raising the minimum Java version (for example 21 → 25) or the
+   minimum Minecraft/server version (for example Paper 26.2 → 26.3) is
    `changed`, not `breaking`. It does not raise the major version, but the
-   notes must still state it (`- Require Java 25.` under `Changed`).
+   notes must still state it under `Changed` (`- Require Java 25.`,
+   `- Require Paper 26.3 or later.`).
 
 Done when every commit in the range is accounted for in a table of
 change, classification and evidence (commit or PR).
@@ -210,11 +212,15 @@ Example:
 ```markdown
 ### Breaking changes
 
-- Require Paper 26.3 or later.
+- Rename the permission `example.use` to `example.command.use`.
 
 ### Added
 
 - Add `/example toggle` to disable the feature per player.
+
+### Changed
+
+- Require Paper 26.3 or later.
 
 ### Fixed
 
