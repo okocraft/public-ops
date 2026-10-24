@@ -242,6 +242,6 @@ def verify_bundle(bundle: Path) -> dict:
     expected = "".join(f"{a['sha256']}  {a['name']}\n" for a in assets[:-1])
     if (bundle / "checksums.txt").read_text(encoding="ascii") != expected:
         raise ReleaseError("Invalid checksum file")
-    if {p.name for p in bundle.iterdir()} != set(names) | {"manifest.json"}:
+    if {p.name for p in bundle.iterdir()} != {a["name"] for a in assets} | {"manifest.json"}:
         raise ReleaseError("Bundle contains unexpected files")
     return data
