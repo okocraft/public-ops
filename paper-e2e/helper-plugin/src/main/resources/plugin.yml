@@ -1,0 +1,20 @@
+name: E2EHelper
+version: '${projectVersion}'
+main: net.okocraft.e2ehelper.E2eHelperPlugin
+api-version: '26.1'
+description: Test-only console commands for end-to-end tests. Never install on a production server.
+commands:
+  e2epos:
+    description: Print a player's world, position and vehicle.
+  e2espawn:
+    description: Spawn an entity (AI disabled) with an optional custom name.
+  e2ehealth:
+    description: Print the health of an entity.
+  e2eexists:
+    description: Print whether an entity still exists.
+  e2eequip:
+    description: Set a player's equipment slot.
+  e2eperm:
+    description: Set or clear a permission node for a player.
+  e2elisten:
+    description: Log every call of an event class (after all other listeners).
