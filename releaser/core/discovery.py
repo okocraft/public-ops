@@ -208,7 +208,7 @@ def verify_bundle(bundle: Path) -> dict:
         "schema_version", "repository", "version", "target_sha", "tag", "build_tool", "assets"
     }:
         raise ReleaseError("Invalid manifest fields")
-    request = ReleaseRequest.parse(data)
+    request = ReleaseRequest.parse({key: data[key] for key in ("schema_version", "repository", "version", "target_sha")})
     if data["tag"] != default_tag(request):
         raise ReleaseError("Tag must match the requested version")
     if data["build_tool"] not in ("gradle", "maven"):
