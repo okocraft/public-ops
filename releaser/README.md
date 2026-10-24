@@ -1,70 +1,62 @@
 # Releaser
 
-Status: **design and contracts only**. Nothing in this directory currently
-creates tags, modifies target repositories, or publishes releases.
+Status: **design only**. Nothing in this directory creates tags or releases yet.
 
-Releaser aims to turn a request such as "release okocraft/Yaminabe at 0.1.0"
-into a tested GitHub Release with the expected binaries attached **without a
-per-repository Releaser configuration file**.
+Releaser turns "release okocraft/Hugs at 1.5" into a GitHub Release with the
+built binaries attached. Target repositories need **no Releaser configuration
+file**: the existing Gradle or Maven build is the source of truth.
 
-The existing project's build definitions remain the source of truth.
-Releaser discovers the build tool, version, and distribution artifacts; if it
-cannot identify them safely, it fails instead of guessing or attaching all JARs.
+## How a release works
+
+1. The version bump is merged through the target repository's normal PR flow.
+   Releaser does not change versions.
+2. The release workflow is started with a version (and optionally a ref).
+3. The **build** job checks out the ref, resolves it to a commit SHA, builds
+   the project, verifies the effective project version equals the requested
+   version, and selects the binaries to attach.
+4. The **publish** job creates the tag at that exact SHA and a GitHub Release
+   with auto-generated notes and the selected binaries (`gh release create`).
+   It never runs target repository code.
+
+An existing tag or release for the version is an error; nothing is overwritten.
 
 ## Execution modes
 
 | | Public target | Private target |
 | --- | --- | --- |
-| Workflow execution | Central workflow in `okocraft/public-ops` | Reusable workflow invoked **inside** the private target repository |
-| Human approval | Required reviewer on the central `release` environment before publishing | None |
-| Publishing identity | GitHub App installation token scoped to the target repository; minted only after approval | Target repository `GITHUB_TOKEN` |
-| Build logs and artifacts | Public: **public repositories only** | Remain private in the calling repository |
-| Build source | Exact requested commit SHA | Exact requested commit SHA |
-| Per-project Releaser config | **Not required** | **Not required** |
+| Runs in | `okocraft/public-ops` (`release-public.yml`) | The private repository, via the reusable workflow `release.yml` |
+| Approval | Required reviewers on the `release` environment | None |
+| Publish credential | GitHub App token scoped to the target, minted after approval | The repository's `GITHUB_TOKEN` (`contents: write`) |
+| Per-repository setup | None | A small caller workflow |
 
-Both modes use the same release-request contract, artifact discovery/validation
-rules, and publication safety checks.
-An unsupported or ambiguous project layout blocks publication rather than
-requiring every repository to adopt a custom release configuration. They differ only in execution location,
-credential source, and approval requirements.
+Private source, logs and binaries never leave the private repository's run.
 
-A private repository must **never** dispatch its build to a public-ops runner
-or send its source, binary, logs, or non-public release metadata to public-ops.
-It uses a **minimal workflow entry point** to invoke the pinned reusable workflow;
-that entry point must not duplicate build commands or asset mappings.
+## Discovery rules
 
-## Inputs and discovery
+- **Build tool:** Gradle wrapper (`gradlew`) or `pom.xml`. Both or neither fails.
+- **Version:** Gradle `./gradlew properties` / Maven `help:evaluate` for
+  `project.version`. It must equal the requested version.
+- **Binaries:**
+  - Gradle: `build/libs/*.jar` in the root project (where the `bundler`
+    plugin's `copyToRootBuildDirectory` collects distributables).
+  - Maven: `target/*.jar`, excluding `original-*` (shade) and the `sources`,
+    `javadoc` and `tests` classifiers.
+  - No candidates fails the release.
+- **Tag:** follows the repository's existing tags (`v1.2.3` or `1.2.3`);
+  `v<version>` when there are no tags. It can be overridden by an input.
+- **Java:** `25` by default, overridable by an input.
 
-- [Release request JSON schema](contracts/release-request.schema.json):
-  repository, requested version, and immutable source commit SHA.
-- [Example request](examples/release-request.json).
-- [Build and artifact discovery design](docs/discovery.md): infer from Gradle
-  wrapper/project files or Maven POMs and validate distributable JARs.
-- [Architecture and threat model](docs/architecture.md).
+## Implementation
 
-There is intentionally **no `.github/releaser.json`** and no
-`project-config.schema.json`. The AI or workflow specifies only the release
-intent, not a list of binaries to publish.
+TypeScript run directly by Node.js 24 (type stripping, no bundled `dist`),
+with no runtime dependencies. Development uses pnpm, `tsc` for type checking,
+`node --test`, oxlint and oxfmt.
 
-## Implementation stages
+Planned PRs:
 
-1. **This PR:** document the execution/credential boundaries, release request
-   contract, discovery strategy, and explicitly unsupported cases.
-2. Core: strictly validate inputs/source SHA, resolve build/version and release
-   artifacts, generate checksums, create a draft Release, verify uploaded assets,
-   and publish with safe retries.
-3. Private: Gradle and Maven reusable workflows running in the calling private
-   repository with a minimal entry point and per-job permissions.
-4. Public: central workflow, required-reviewer environment gate, App token
-   scoped to the target repo, and public-visibility enforcement.
-5. End-to-end tests, failure scenarios, and onboarding documentation.
+1. TypeScript core: discovery, version check, binary selection, tag resolution.
+2. Private reusable workflow and caller example.
+3. Public workflow with environment approval and GitHub App token.
 
-Existing special-purpose publication, such as Box's Maven repository and
-Javadocs, remains out of scope for the initial GitHub Release implementation.
-
-## Non-goals of this PR
-
-There is intentionally no executable publishing workflow, GitHub App setup,
-Environment configuration, branch protection change, or modification to target
-repositories. JSON Schema defines intended input structure; its enforcement
-and functional discovery are implemented and tested in the follow-on PRs.
+Out of scope: Maven repository publishing, Javadocs and multi-module Maven
+projects.
