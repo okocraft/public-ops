@@ -1,6 +1,6 @@
 # Releaser
 
-Status: **core only**. No workflow creates tags or releases yet.
+Status: private repositories are supported; the public workflow is not implemented yet.
 
 Releaser turns "release okocraft/Hugs at 1.5" into a GitHub Release with the
 built binaries attached. Target repositories need **no Releaser configuration
@@ -30,6 +30,34 @@ An existing tag or release for the version is an error; nothing is overwritten.
 | Per-repository setup | None                                                         | A small caller workflow                                         |
 
 Private source, logs and binaries never leave the private repository's run.
+
+## Private repository setup
+
+Add `.github/workflows/release.yml` to the private repository, pinning a
+public-ops release by SHA (Renovate keeps it up to date):
+
+```yaml
+name: Release
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release
+        required: true
+
+jobs:
+  release:
+    uses: okocraft/public-ops/.github/workflows/release.yml@<sha> # <public-ops version>
+    with:
+      version: ${{ inputs.version }}
+    permissions:
+      contents: write
+```
+
+Start it with `gh workflow run release.yml -R okocraft/<repo> -f version=<version>`.
+Optional inputs: `ref` (default: the triggering ref), `tag` and `java-version`.
+The reusable workflow checks out its own releaser code at the same commit
+(`job.workflow_sha`), so the pinned SHA fixes both.
 
 ## Discovery rules
 
@@ -62,10 +90,7 @@ pnpm install
 pnpm run check   # oxfmt --check, oxlint, tsc, node --test
 ```
 
-Planned PRs:
-
-1. Private reusable workflow and caller example.
-2. Public workflow with environment approval and GitHub App token.
+Planned: the public workflow with environment approval and GitHub App token.
 
 Out of scope: Maven repository publishing, Javadocs and multi-module Maven
 projects.
