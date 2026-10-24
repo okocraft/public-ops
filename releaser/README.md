@@ -113,11 +113,11 @@ Rules:
 
 ### Added
 
-- Add `/hugs toggle` to disable hugs per player.
+- Add `/example toggle` to disable the feature per player.
 
 ### Fixed
 
-- Fix hugs not being sent across worlds.
+- Fix messages not being sent across worlds.
 ```
 
 ## Discovery rules
