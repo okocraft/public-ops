@@ -1,6 +1,6 @@
 # Releaser
 
-Status: **design only**. Nothing in this directory creates tags or releases yet.
+Status: **core only**. No workflow creates tags or releases yet.
 
 Releaser turns "release okocraft/Hugs at 1.5" into a GitHub Release with the
 built binaries attached. Target repositories need **no Releaser configuration
@@ -22,12 +22,12 @@ An existing tag or release for the version is an error; nothing is overwritten.
 
 ## Execution modes
 
-| | Public target | Private target |
-| --- | --- | --- |
-| Runs in | `okocraft/public-ops` (`release-public.yml`) | The private repository, via the reusable workflow `release.yml` |
-| Approval | Required reviewers on the `release` environment | None |
-| Publish credential | GitHub App token scoped to the target, minted after approval | The repository's `GITHUB_TOKEN` (`contents: write`) |
-| Per-repository setup | None | A small caller workflow |
+|                      | Public target                                                | Private target                                                  |
+| -------------------- | ------------------------------------------------------------ | --------------------------------------------------------------- |
+| Runs in              | `okocraft/public-ops` (`release-public.yml`)                 | The private repository, via the reusable workflow `release.yml` |
+| Approval             | Required reviewers on the `release` environment              | None                                                            |
+| Publish credential   | GitHub App token scoped to the target, minted after approval | The repository's `GITHUB_TOKEN` (`contents: write`)             |
+| Per-repository setup | None                                                         | A small caller workflow                                         |
 
 Private source, logs and binaries never leave the private repository's run.
 
@@ -52,11 +52,19 @@ TypeScript run directly by Node.js 24 (type stripping, no bundled `dist`),
 with no runtime dependencies. Development uses pnpm, `tsc` for type checking,
 `node --test`, oxlint and oxfmt.
 
+`src/prepare.ts` runs in the target checkout: it verifies the version,
+resolves the tag, builds, and copies the binaries to `--out-dir`.
+
+```sh
+cd releaser
+pnpm install
+pnpm run check   # oxfmt --check, oxlint, tsc, node --test
+```
+
 Planned PRs:
 
-1. TypeScript core: discovery, version check, binary selection, tag resolution.
-2. Private reusable workflow and caller example.
-3. Public workflow with environment approval and GitHub App token.
+1. Private reusable workflow and caller example.
+2. Public workflow with environment approval and GitHub App token.
 
 Out of scope: Maven repository publishing, Javadocs and multi-module Maven
 projects.
