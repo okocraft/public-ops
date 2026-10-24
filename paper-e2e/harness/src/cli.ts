@@ -8,13 +8,15 @@ import type { Scenario } from "./scenario.ts";
 
 const USAGE = `Usage:
   node src/cli.ts prepare --dir <server-dir> --minecraft <version> [--translate] [--plugin luckperms]...
-  node src/cli.ts run --dir <server-dir> --minecraft <version> [--java <path>] [--out <dir>] [--reset <path>]... [--only <id>]... [--parallel <n>] [--base-port <port>] [--no-cds] <scenario.ts>...
+  node src/cli.ts run --dir <server-dir> --minecraft <version> [--java <path>] [--out <dir>] [--reset <path>]... [--only <id>]... [--parallel <n>] [--base-port <port>] [--record-packets <regex>] [--no-cds] <scenario.ts>...
 
 --reset <path> (relative to <server-dir>, repeatable) is deleted before every scenario, in addition to the
 worlds. Use it for plugin data and for files such as ops.json, usercache.json or plugins/LuckPerms/*.
 --only <id> (repeatable) runs just those scenarios, for re-running after a fix.
 --parallel <n> runs up to n scenarios at the same time, each on its own server copy and port
 (base-port + worker number). Every scenario still gets a fresh server.
+--record-packets <regex> sets the packet names every bot records (default: death and merchant packets),
+e.g. 'world_particles|sound_effect'. A bot declared with its own recordPackets keeps that.
 --no-cds skips the class-data-sharing archive (<server-dir>/.e2e/app.jsa) that is created on the first
 run and shortens every server start.
 Each scenario's console log is saved to <out>/logs/<scenario id>.log.
@@ -35,6 +37,7 @@ const { positionals, values } = parseArgs({
     parallel: { type: "string", default: "1" },
     "base-port": { type: "string", default: "25565" },
     "no-cds": { type: "boolean", default: false },
+    "record-packets": { type: "string" },
   },
 });
 
@@ -101,6 +104,9 @@ if (command === "prepare") {
       server: { dir, java: values.java },
       clientVersion: client.version,
       resetPaths: values.reset,
+      ...(values["record-packets"] === undefined
+        ? {}
+        : { recordPackets: new RegExp(values["record-packets"], "i") }),
     },
     logDir: resolve(values.out, "logs"),
   });

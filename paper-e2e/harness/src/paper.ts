@@ -1,6 +1,6 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { appendFileSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { sleep, stripAnsi } from "./text.ts";
 
 /** Server processes to kill when the harness exits, so no server outlives a crashed run. */
@@ -25,6 +25,8 @@ export function serverProperties(overrides: Record<string, string> = {}): string
     "white-list": "false",
     "enforce-secure-profile": "false",
     "level-type": "minecraft:flat",
+    "level-seed": "0",
+    "generate-structures": "false",
     "spawn-protection": "0",
     "view-distance": "4",
     "simulation-distance": "4",
@@ -93,10 +95,21 @@ export class PaperServer {
     rmSync(this.#logFile, { force: true });
   }
 
+  /** Writes files (path relative to the server directory), creating folders as needed. */
+  writeFiles(files: Readonly<Record<string, string>>): void {
+    for (const [path, content] of Object.entries(files)) {
+      const target = join(this.dir, path);
+      mkdirSync(dirname(target), { recursive: true });
+      writeFileSync(target, content);
+    }
+  }
+
   async start(timeoutMs = 180_000): Promise<void> {
     mkdirSync(this.dir, { recursive: true });
     writeFileSync(join(this.dir, "eula.txt"), "eula=true\n");
     writeFileSync(join(this.dir, "server.properties"), serverProperties(this.#options.properties));
+    // `lines` survives a restart; match only the `Done` of this start, not one from a previous run.
+    const startMark = this.mark();
     const java = this.#options.java ?? "java";
     const child = spawn(
       java,
@@ -129,7 +142,7 @@ export class PaperServer {
       }),
     );
     runningProcesses.add(child);
-    await this.waitForLog(/Done \(/, timeoutMs, 0);
+    await this.waitForLog(/Done \(/, timeoutMs, startMark);
   }
 
   /** Sends a console command. The command is also written to the run log for traceability. */
