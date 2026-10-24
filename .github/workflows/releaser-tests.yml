@@ -1,28 +1,44 @@
-name: Releaser Core Tests
+name: Releaser TypeScript Bootstrap
 
 on:
-  pull_request:
-    paths:
-      - "releaser/**"
-      - ".github/workflows/releaser-tests.yml"
   push:
-    branches:
-      - main
-    paths:
-      - "releaser/**"
-      - ".github/workflows/releaser-tests.yml"
+    branches: [feat/releaser-core]
 
 permissions:
   contents: read
 
 jobs:
-  unit-tests:
+  compile-test-bundle:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Verify Python version
-        run: python3 --version
-      - name: Run unit tests
-        run: python3 -m unittest discover -s releaser/tests -v
-      - name: Compile source
-        run: python3 -m compileall -q releaser/core releaser/tests
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Install dependencies without lifecycle scripts
+        working-directory: releaser
+        run: npm install --ignore-scripts --no-audit
+      - name: Typecheck
+        working-directory: releaser
+        run: npm run typecheck
+      - name: Unit tests
+        working-directory: releaser
+        run: npm test
+      - name: Bundle prepare and publish actions
+        working-directory: releaser
+        run: npm run build
+      - name: Commit lockfile and bundled actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git add releaser/package-lock.json releaser/actions/prepare/dist/index.js releaser/actions/publish/dist/index.js
+          if ! git diff --cached --quiet; then
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'build(releaser): lock dependencies and bundle node24 actions'
+            auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w 0)"
+            git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" push origin HEAD:feat/releaser-core
+          fi
