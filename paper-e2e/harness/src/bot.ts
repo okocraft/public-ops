@@ -156,6 +156,18 @@ export class TestBot {
     return this.raw._client as unknown as RawClient;
   }
 
+  /** Polls until `predicate` holds or `timeoutMs` passes. Returns whether it held. */
+  async waitFor(predicate: () => boolean, timeoutMs = 3000, pollMs = 25): Promise<boolean> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (predicate()) {
+        return true;
+      }
+      await sleep(pollMs);
+    }
+    return predicate();
+  }
+
   chat(text: string): void {
     this.raw.chat(text);
   }

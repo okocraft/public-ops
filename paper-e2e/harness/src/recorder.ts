@@ -52,6 +52,11 @@ export class Recorder {
     this.#add(id, title, "UNVERIFIED", reason, covers, detail);
   }
 
+  /** Adds results produced by another recorder (for example from a parallel worker). */
+  append(results: readonly CheckResult[]): void {
+    this.#results.push(...results);
+  }
+
   summary(): Record<Status, number> {
     const counts: Record<Status, number> = { PASS: 0, FAIL: 0, UNVERIFIED: 0 };
     for (const result of this.#results) {

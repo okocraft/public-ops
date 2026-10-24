@@ -61,3 +61,13 @@ Scenarios change permissions with `env.permission(player, node, "true" | "false"
   report's Executed and Expected columns (`-` when omitted).
 - **Known log noise**: `server.errors()` returns `ERROR`/`FATAL` lines without `KNOWN_SERVER_NOISE`
   (for example `No key layers in MapLike[{}]`, which a healthy server prints on every start).
+
+## Speed
+
+Most of a scenario's time is fixed overhead: Paper boots in 13-15 s and the bots need 5-9 s to join, on every fresh server. The harness reduces this in three ways.
+
+- **Faster starts.** `run` creates a class-data-sharing archive once (`<server-dir>/.e2e/app.jsa`, by starting the prepared server and stopping it) and starts every server with it, together with a serial GC and C1-only JIT (`DEFAULT_JVM_ARGS`). A start drops from about 15 s to 10 s. Delete the archive after changing Java or `paper.jar`; `--no-cds` disables it.
+- **Parallel scenarios.** `--parallel <n>` runs n scenarios at once, each on its own copy of the server directory (large read-only directories are linked) and its own port (`--base-port` + worker number). Every scenario still gets a fresh server. Use at most one worker per CPU core (a server uses 1 GB by default).
+- **Waits for conditions, not for time.** `env.sayUntil(name, text, /pattern/)` returns when the bot received the expected message, `env.helper(...)` returns at the helper's first line, `env.permission(...)` returns at LuckPerms' answer, and `bot.waitFor(predicate)` / `server.runUntil(command, /pattern/)` do the same for your own checks. A check that something does **not** happen still needs a fixed window; keep it short and give it a control.
+
+`--only <id>` (repeatable) runs just the named scenarios, for re-running after a fix instead of the whole set.
