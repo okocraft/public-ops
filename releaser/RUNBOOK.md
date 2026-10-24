@@ -160,6 +160,9 @@ Tasks:
    `fixed`, `internal` (refactoring, CI, tests, routine dependency updates).
    A dependency update is not `internal` when it changes the supported
    server or Java versions.
+   Exception: raising the required Java version (for example 21 → 25) is
+   `changed`, not `breaking`. It does not raise the major version, but the
+   notes must still state it (`- Require Java 25.` under `Changed`).
 
 Done when every commit in the range is accounted for in a table of
 change, classification and evidence (commit or PR).
