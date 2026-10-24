@@ -34,8 +34,14 @@ NODE_USE_ENV_PROXY=1 node src/cli.ts prepare --dir .e2e/server --minecraft 26.3
 cp ../helper-plugin/build/libs/E2EHelper-*.jar .e2e/server/plugins/
 # copy the plugin under test (and its dependencies) into .e2e/server/plugins as well
 
+# Optional: a real permission plugin (LuckPerms) for permission checks
+NODE_USE_ENV_PROXY=1 node src/cli.ts prepare --dir .e2e/server --minecraft 26.3 --plugin luckperms
+
 node src/cli.ts run --dir .e2e/server --minecraft 26.3 --java /path/to/java examples/death-broadcast.scenario.ts
 ```
+
+Scenarios change permissions with `env.permission(player, node, "true" | "false" | "unset")`, which runs
+`lp user <player> permission ...` (requires `--plugin luckperms`).
 
 `run` writes `report.md` and `results.json` to `.e2e/report` and exits non-zero when a check fails.
 `NODE_USE_ENV_PROXY=1` is only needed behind an HTTP proxy (it makes Node's `fetch` honour `HTTPS_PROXY`).
