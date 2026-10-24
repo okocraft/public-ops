@@ -37,7 +37,7 @@ Run `release-public.yml` in public-ops:
 gh workflow run release-public.yml -R okocraft/public-ops -f repository=<repo> -f version=<version>
 ```
 
-Optional inputs: `ref` (default: the default branch), `tag` and `java-version`.
+Optional inputs: `ref` (default: the default branch), `tag`, `java-version` and `notes`.
 The build job rejects non-public repositories and lists the assets with
 SHA-256 checksums in the run summary. The publish job waits for approval on
 the `release` environment, then mints a token for the target repository only.
@@ -76,9 +76,24 @@ jobs:
 ```
 
 Start it with `gh workflow run release.yml -R okocraft/<repo> -f version=<version>`.
-Optional inputs: `ref` (default: the triggering ref), `tag` and `java-version`.
+Optional inputs: `ref` (default: the triggering ref), `tag`, `java-version` and `notes`.
 The reusable workflow checks out its own releaser code at the same commit
 (`job.workflow_sha`), so the pinned SHA fixes both.
+
+## Release notes
+
+Pass `notes` (Markdown) to publish them; without it GitHub generates a list
+of merged PRs. When an agent prepares a release:
+
+1. Read the changes since the previous release tag (commits, merged PRs and
+   the diff), not just PR titles.
+2. Write notes for server operators: new features, behaviour changes, fixes,
+   and anything requiring action (config or permission changes, minimum
+   Minecraft/Java version). Mention dependency updates only when they matter
+   to users; summarise routine Renovate updates in one line or omit them.
+3. Put the draft in the version bump PR description. Merging the PR approves
+   it; pass the merged text as `notes`, e.g.
+   `gh workflow run release.yml -R okocraft/<repo> -f version=<version> -f notes="$(cat notes.md)"`.
 
 ## Discovery rules
 
