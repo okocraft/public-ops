@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { chooseClientVersion } from "./bot.ts";
-import { serverProperties } from "./paper.ts";
+import { PaperServer, serverProperties } from "./paper.ts";
 
 describe("serverProperties", () => {
   it("binds the unauthenticated server to loopback by default", () => {
@@ -33,5 +33,17 @@ describe("chooseClientVersion", () => {
       version: "26.1",
       needsTranslation: true,
     });
+  });
+});
+
+describe("PaperServer.errors", () => {
+  it("skips known noise and keeps real errors", () => {
+    const server = new PaperServer({ dir: "/nonexistent" });
+    server.lines.push(
+      "[10:00:00 ERROR]: No key layers in MapLike[{}]",
+      "[10:00:01 ERROR]: Could not load plugin",
+      "[10:00:02 INFO]: Done",
+    );
+    assert.deepEqual(server.errors(), ["[10:00:01 ERROR]: Could not load plugin"]);
   });
 });

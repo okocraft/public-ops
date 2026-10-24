@@ -1,4 +1,4 @@
-import { TestBot, type TestBotOptions } from "./bot.ts";
+import { TestBot, type BotSpec } from "./bot.ts";
 import { parseHelperLine, toPosition, type HelperLine, type PlayerPosition } from "./helper-log.ts";
 import { PaperServer, type PaperServerOptions } from "./paper.ts";
 import { sleep } from "./text.ts";
@@ -34,12 +34,13 @@ export class E2eEnv {
     }
   }
 
-  async join(...names: string[]): Promise<void> {
-    for (const username of names) {
-      const options: TestBotOptions = { username, version: this.#options.clientVersion };
-      const bot = new TestBot(options);
+  /** Connects bots. A bare name uses the defaults; an object sets per-bot options. */
+  async join(...specs: BotSpec[]): Promise<void> {
+    for (const spec of specs) {
+      const options = typeof spec === "string" ? { username: spec } : spec;
+      const bot = new TestBot({ ...options, version: this.#options.clientVersion });
       await bot.join();
-      this.bots[username] = bot;
+      this.bots[options.username] = bot;
     }
     await sleep(2500); // let chunks and sessions settle
   }

@@ -8,7 +8,11 @@ import type { Scenario } from "./scenario.ts";
 
 const USAGE = `Usage:
   node src/cli.ts prepare --dir <server-dir> --minecraft <version> [--translate] [--plugin luckperms]...
-  node src/cli.ts run --dir <server-dir> --minecraft <version> [--java <path>] [--out <dir>] <scenario.ts>...
+  node src/cli.ts run --dir <server-dir> --minecraft <version> [--java <path>] [--out <dir>] [--reset <path>]... <scenario.ts>...
+
+--reset <path> (relative to <server-dir>, repeatable) is deleted before every scenario, in addition to the
+worlds. Use it for plugin data and for files such as ops.json, usercache.json or plugins/LuckPerms/*.
+Each scenario's console log is saved to <out>/logs/<scenario id>.log.
 
 Behind a proxy, run with NODE_USE_ENV_PROXY=1 so that downloads use HTTPS_PROXY.`;
 
@@ -21,6 +25,7 @@ const { positionals, values } = parseArgs({
     plugin: { type: "string", multiple: true, default: [] },
     java: { type: "string", default: "java" },
     out: { type: "string", default: ".e2e/report" },
+    reset: { type: "string", multiple: true, default: [] },
   },
 });
 
@@ -72,7 +77,12 @@ if (command === "prepare") {
     );
   }
   const recorder = await runScenarios(scenarios, {
-    env: { server: { dir, java: values.java }, clientVersion: client.version },
+    env: {
+      server: { dir, java: values.java },
+      clientVersion: client.version,
+      resetPaths: values.reset,
+    },
+    logDir: resolve(values.out, "logs"),
   });
   const header = [
     `Minecraft/Paper server: ${values.minecraft}`,

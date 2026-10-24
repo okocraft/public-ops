@@ -24,7 +24,12 @@ export interface TestBotOptions {
   readonly recordPackets?: RegExp;
   /** Respawn automatically after dying. */
   readonly autoRespawn?: boolean;
+  /** Client locale sent to the server (default `en_US`), e.g. `ja_JP` for locale-dependent messages. */
+  readonly locale?: string;
 }
+
+/** What `E2eEnv.join` and `Scenario.bots` accept: a bare name, or a name with per-bot options. */
+export type BotSpec = string | Omit<TestBotOptions, "version" | "port">;
 
 /** Packets recorded by default: death screen data and container/merchant windows. */
 export const DEFAULT_RECORDED_PACKETS = /combat|death|open_window|open_screen|trade|close_window/i;
@@ -124,7 +129,31 @@ export class TestBot {
         resolve();
       });
     });
+    if (this.#options.locale !== undefined) {
+      // `locale` is accepted at runtime but missing from mineflayer's `GameSettings` type
+      await bot.setSettings({ locale: this.#options.locale } as never);
+    }
     await sleep(500);
+  }
+
+  /**
+   * Right-clicks an entity with an explicit sneaking flag. mineflayer's `activateEntity` always
+   * sends `sneaking: false`, which turns sneak-dependent interactions into silent no-ops.
+   * Use this for plugins that treat sneak + right-click differently.
+   */
+  useEntity(entityId: number, options: { sneaking?: boolean; offHand?: boolean } = {}): void {
+    this.#client.write("use_entity", {
+      target: entityId,
+      mouse: 0,
+      hand: options.offHand === true ? 1 : 0,
+      sneaking: options.sneaking ?? false,
+      location: { x: 0, y: 0, z: 0 }, // required by the protocol serializer; unused for a plain interact
+    });
+  }
+
+  get #client(): RawClient {
+    // oxlint-disable-next-line no-underscore-dangle -- mineflayer only exposes the raw protocol client as `_client`
+    return this.raw._client as unknown as RawClient;
   }
 
   chat(text: string): void {

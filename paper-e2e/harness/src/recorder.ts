@@ -8,6 +8,16 @@ export interface CheckResult {
   readonly evidence: string;
   /** Test viewpoint / operation IDs from TESTING.md covered by this check, e.g. `OP-001`. */
   readonly covers: readonly string[];
+  /** What the check did, for the report's Executed column. */
+  readonly executed?: string;
+  /** What the check expected, for the report's Expected column. */
+  readonly expected?: string;
+}
+
+/** Optional report columns for a check. */
+export interface CheckDetail {
+  readonly executed?: string;
+  readonly expected?: string;
 }
 
 /**
@@ -27,12 +37,19 @@ export class Recorder {
     ok: boolean,
     evidence: string,
     covers: readonly string[] = [],
+    detail: CheckDetail = {},
   ): boolean {
-    return this.#add(id, title, ok ? "PASS" : "FAIL", evidence, covers);
+    return this.#add(id, title, ok ? "PASS" : "FAIL", evidence, covers, detail);
   }
 
-  unverified(id: string, title: string, reason: string, covers: readonly string[] = []): void {
-    this.#add(id, title, "UNVERIFIED", reason, covers);
+  unverified(
+    id: string,
+    title: string,
+    reason: string,
+    covers: readonly string[] = [],
+    detail: CheckDetail = {},
+  ): void {
+    this.#add(id, title, "UNVERIFIED", reason, covers, detail);
   }
 
   summary(): Record<Status, number> {
@@ -44,9 +61,13 @@ export class Recorder {
   }
 
   toMarkdown(): string {
-    const lines = ["| ID | Result | Check | Evidence |", "| --- | --- | --- | --- |"];
+    const lines = [
+      "| ID | Result | Check | Executed | Expected | Evidence |",
+      "| --- | --- | --- | --- | --- | --- |",
+    ];
     for (const r of this.#results) {
-      lines.push(`| ${r.id} | ${r.status} | ${escapeCell(r.title)} | ${escapeCell(r.evidence)} |`);
+      const cells = [r.id, r.status, r.title, r.executed ?? "-", r.expected ?? "-", r.evidence];
+      lines.push(`| ${cells.map(escapeCell).join(" | ")} |`);
     }
     const s = this.summary();
     lines.push("", `PASS ${s.PASS} / FAIL ${s.FAIL} / UNVERIFIED ${s.UNVERIFIED}`);
@@ -59,11 +80,12 @@ export class Recorder {
     status: Status,
     evidence: string,
     covers: readonly string[],
+    detail: CheckDetail,
   ): boolean {
     if (evidence.trim() === "") {
       throw new Error(`Check ${id} has no evidence. Record what was observed.`);
     }
-    this.#results.push({ id, title, status, evidence, covers });
+    this.#results.push({ id, title, status, evidence, covers, ...detail });
     return status === "PASS";
   }
 }
