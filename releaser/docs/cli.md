@@ -1,101 +1,81 @@
-# Releaser core CLI (PR 2)
+# TypeScript Releaser core
 
-The core is implemented with the Python standard library. **No target repository
-needs a Releaser config file.** This is a standalone library and CLI for later
-GitHub Actions integration; it is **not yet automatically invoked by a workflow**.
+The implementation uses TypeScript (strict typechecking), Node.js 24, GitHub Actions
+Toolkit, Octokit, Ajv, Vitest, ESLint, Prettier and esbuild.
 
-## Release request
+**No per-repository Releaser settings are required.** Workflow orchestration is
+intentionally a separate PR. This PR does not trigger real GitHub Releases.
 
-The agent generates a file matching
-[release-request.schema.json](../contracts/release-request.schema.json):
+## Prepare Action (read-only)
 
-```json
-{
-  "schema_version": 1,
-  "repository": "okocraft/Yaminabe",
-  "version": "0.1.0",
-  "target_sha": "0123456789abcdef0123456789abcdef01234567"
-}
-```
+`releaser/actions/prepare/action.yml` accepts:
 
-The SHA must be the full commit ID of the version-bumped project. A branch name
-is never an acceptable substitute.
+- `request-file`: JSON request matching `releaser/contracts/release-request.schema.json`
+- `workspace`: source directory checked out at exactly the request's `target_sha`
+- `bundle-directory`: new directory that does not exist yet
 
-## Prepare (unprivileged build job)
+Caller builds/tests the source with its existing Gradle wrapper or Maven build,
+then runs Prepare without any publication credentials. Prepare verifies source
+SHA and version, opens JAR metadata with bounded ZIP parsing, selects only
+deployable Paper/Bukkit and Velocity JARs, and stages:
 
-A workflow checks out **that SHA** of the target project, installs an
-appropriate Java toolchain, and performs the normal project build. After
-successful tests, it executes:
+- Release binaries (exact original filenames)
+- `checksums.txt`
+- `manifest.json` binding repository, commit SHA, version, asset sizes/hashes
 
-```shell
-python3 releaser/core/cli.py validate-request --request request.json
-python3 releaser/core/cli.py prepare \
-  --request request.json \
-  --workspace /path/to/target/checkout \
-  --bundle /path/to/output/release-bundle
-```
+If discovery cannot positively identify the intended artifacts, Prepare fails.
+The first release core supports Gradle root `build/libs` and Maven root or
+module `target` layout, with explicit Gradle `gradle.properties` versions
+and directly resolvable Maven POM versions. Other layouts may require further
+discovery logic. No arbitrary AI-provided shell command or binary mapping is
+accepted.
 
-The CLI verifies the checkout HEAD SHA, source version, and metadata of
-distributable plugin binaries, copies only accepted files, and writes
-`release-bundle/manifest.json` and `checksums.txt`.
+## Publish Action (write permission only after Public approval)
 
-The resulting bundle is an **untrusted transfer artifact** until the separate
-publishing job validates all its sizes/hashes again. The publishing job must
-not execute Gradle, Maven, or any scripts from the target checkout.
+`releaser/actions/publish/action.yml` accepts:
 
-## Publish (privileged job)
+- `bundle-directory`: the previously staged release bundle
+- `mode`: `public` or `private`, checked against the repository visibility
+- `token`: a target-scoped write token; GitHub App for Public after central
+  Environment approval; caller `GITHUB_TOKEN` for Private
 
-Following the environment approval for **Public** targets (or automatically
-within a **Private** caller), a publishing job downloads the exact prepared
-bundle and uses the appropriately scoped token:
+The publishing job must **not** check out or execute target repository code.
+It rehashes all transferred assets, verifies the target repository and source
+SHA via GitHub, checks existing tags/releases, uploads to a Draft Release,
+checks remote SHA-256 digests and expected asset names, then publishes and
+re-verifies. An already published Release is not modified, and a conflicting
+tag/draft asset is never overwritten.
 
-```shell
-python3 releaser/core/cli.py verify-bundle --bundle release-bundle
-GH_TOKEN="$GITHUB_APP_INSTALLATION_TOKEN" \
-  python3 releaser/core/cli.py publish --bundle release-bundle
-```
+For Private mode, the Action additionally checks that `GITHUB_REPOSITORY`
+identifies the same repository; private build logs and binaries never enter a
+public GitHub Actions execution.
 
-The `publish` command validates the target commit and tag, creates a draft
-GitHub Release, uploads each checked asset and checksums file, verifies their
-GitHub-computed SHA-256 digests, publishes and verifies the Release.
-
-### Security requirements for Actions integration
-
-- The publishing job **must not** get tokens before Public Environment approval.
-- Public jobs independently verify the target repository's visibility.
-- Set job `concurrency` to a stable per-target/per-tag key to prevent races.
-- Build jobs use `contents: read`; publishing uses scoped write access.
-- Pin the Releaser code revision; do not run target-supplied build scripts in
-  the publishing job.
-- Do not forward private source/artifacts/logs into Public Actions.
-- Authenticated Release Assets require GitHub API to supply a `digest`;
-  absence of that field fails closed.
-- The default tag style in this initial core is `v<version>`. Existing
-  nonstandard tag conventions require explicit detection in later work.
-- A successfully published Release is immutable to the core: retrying that
-  version fails instead of changing assets.
-
-### Supported builds and limits
-
-This first implementation supports Gradle projects whose `version` is
-explicit in `gradle.properties` and whose deployable plugin jars are copied
-to root `build/libs`, plus simple Maven projects with a directly resolvable
-`pom.xml` version and jars in root or one-level `target` directories.
-
-Only JARs with Paper/Bukkit or Velocity plugin metadata matching the requested
-version are selected. It does not assume all JARs are releasable. There is a
-per-file 256 MiB cap, up to 20 binary assets, and strict duplicate/missing
-platform detection. Exotic build conventions and non-plugin libraries are not
-yet supported; the core fails closed rather than guessing.
-
-## Tests
+## Development
 
 ```shell
-python3 -m unittest discover -s releaser/tests -v
+cd releaser
+npm ci --ignore-scripts
+npm run typecheck
+npm run lint
+npm test
+npm run format:check
+npm run build:check
 ```
 
-The unit tests use temporary JARs and a fake GitHub API. They create **no
-real releases, refs, or repository modifications**.
+The checked-in `actions/{prepare,publish}/dist/index.js` are deterministic
+esbuild bundles. Update them with `npm run build` and commit the regenerated
+files with any source changes. Consumers of the JavaScript Actions do not
+need to install npm dependencies.
 
-The Public approval-gated orchestrator and Private reusable workflow are
-separate follow-up PRs.
+## Integration constraints
+
+- Pin any reused workflow or JavaScript Action to a reviewed SHA.
+- Use per-job permissions; do not make the GitHub App key available to the
+  Prepare job.
+- Run Public publication behind `environment: release` with required
+  maintainer reviewers.
+- Run Private Actions in the calling repository, without human approval.
+- Apply workflow-level per-target/per-tag concurrency to prevent races.
+- Initial tag format is `v<version>`. Nonstandard historical tags will need
+  an explicit adapter. Other publication channels such as Maven/Javadocs are
+  out of scope.
