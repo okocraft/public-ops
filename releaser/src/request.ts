@@ -9,7 +9,7 @@ export function parseRequest(input: unknown): ReleaseRequest {
     throw new ReleaseError('Invalid release request: ' +
       (validate.errors?.map((error) => error.message).join('; ') ?? ''));
   }
-  return input as ReleaseRequest;
+  return input as unknown as ReleaseRequest;
 }
 
 export function tagFor(request: ReleaseRequest): string {
