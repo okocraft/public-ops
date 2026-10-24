@@ -4,6 +4,9 @@ inputs:
   bundle-directory:
     required: true
     description: Verified release bundle
+  mode:
+    required: true
+    description: Either public or private; enforced against GitHub repository visibility
   token:
     required: true
     description: Scoped token available only in the publishing job
