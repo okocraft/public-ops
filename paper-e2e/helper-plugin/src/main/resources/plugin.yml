@@ -14,7 +14,5 @@ commands:
     description: Print whether an entity still exists.
   e2eequip:
     description: Set a player's equipment slot.
-  e2eperm:
-    description: Set or clear a permission node for a player.
   e2elisten:
     description: Log every call of an event class (after all other listeners).

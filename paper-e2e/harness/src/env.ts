@@ -81,6 +81,19 @@ export class E2eEnv {
     });
   }
 
+  /**
+   * Sets a permission through LuckPerms (install it with `prepare --plugin luckperms`):
+   * `true`/`false` set the node, `unset` removes it. Returns the log lines LuckPerms printed.
+   */
+  async permission(
+    name: string,
+    node: string,
+    value: "true" | "false" | "unset",
+  ): Promise<string[]> {
+    const action = value === "unset" ? `unset ${node}` : `set ${node} ${value}`;
+    return this.server.run(`lp user ${name} permission ${action}`, 800);
+  }
+
   async position(name: string): Promise<PlayerPosition | null> {
     const lines = await this.helper(`e2epos ${name}`);
     for (const line of lines) {

@@ -71,3 +71,31 @@ export async function downloadHangarPlugin(slug: string, dir: string): Promise<s
   writeFileSync(file, await download(url));
   return file;
 }
+
+interface LuckPermsMetadata {
+  readonly downloads?: Record<string, string>;
+}
+
+/** Picks the Bukkit (Paper/Folia) loader from LuckPerms' download metadata. */
+export function pickLuckPermsBukkit(metadata: LuckPermsMetadata): {
+  url: string;
+  fileName: string;
+} {
+  const url = metadata.downloads?.["bukkit"];
+  const fileName = url?.split("/").at(-1);
+  if (url === undefined || fileName === undefined || !fileName.endsWith(".jar")) {
+    throw new Error("LuckPerms metadata has no Bukkit download.");
+  }
+  return { url, fileName };
+}
+
+/** Downloads the newest LuckPerms Bukkit jar into `<dir>/plugins` (permission plugin for tests). */
+export async function downloadLuckPerms(dir: string): Promise<string> {
+  const { url, fileName } = pickLuckPermsBukkit(
+    await getJson<LuckPermsMetadata>("https://metadata.luckperms.net/data/downloads"),
+  );
+  mkdirSync(join(dir, "plugins"), { recursive: true });
+  const file = join(dir, "plugins", fileName);
+  writeFileSync(file, await download(url));
+  return file;
+}

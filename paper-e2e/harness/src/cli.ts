@@ -2,12 +2,12 @@ import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { chooseClientVersion } from "./bot.ts";
-import { downloadHangarPlugin, downloadPaper } from "./download.ts";
+import { downloadHangarPlugin, downloadLuckPerms, downloadPaper } from "./download.ts";
 import { runScenarios } from "./runner.ts";
 import type { Scenario } from "./scenario.ts";
 
 const USAGE = `Usage:
-  node src/cli.ts prepare --dir <server-dir> --minecraft <version> [--translate]
+  node src/cli.ts prepare --dir <server-dir> --minecraft <version> [--translate] [--plugin luckperms]...
   node src/cli.ts run --dir <server-dir> --minecraft <version> [--java <path>] [--out <dir>] <scenario.ts>...
 
 Behind a proxy, run with NODE_USE_ENV_PROXY=1 so that downloads use HTTPS_PROXY.`;
@@ -18,6 +18,7 @@ const { positionals, values } = parseArgs({
     dir: { type: "string" },
     minecraft: { type: "string" },
     translate: { type: "boolean", default: false },
+    plugin: { type: "string", multiple: true, default: [] },
     java: { type: "string", default: "java" },
     out: { type: "string", default: ".e2e/report" },
   },
@@ -41,6 +42,12 @@ if (command === "prepare") {
     console.log(
       `mineflayer cannot speak ${values.minecraft}; bots connect as ${client.version} through ViaVersion.`,
     );
+  }
+  for (const plugin of values.plugin) {
+    if (plugin !== "luckperms") {
+      throw new Error(`Unknown --plugin ${plugin}. Supported: luckperms`);
+    }
+    console.log(`LuckPerms -> ${await downloadLuckPerms(dir)}`);
   }
   console.log("Copy the plugin under test and the E2E helper plugin into <server-dir>/plugins.");
 } else if (command === "run") {
