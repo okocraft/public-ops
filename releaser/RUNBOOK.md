@@ -16,6 +16,53 @@ public repositories, by approving the `release` environment.
 - **Version** (optional): if omitted, propose one in Step 3.
 - **Ref** (optional): the branch to release from. Default: the default branch.
 
+## How Releaser works
+
+Releaser builds the repository with its existing Gradle or Maven setup and
+publishes a GitHub Release. Target repositories need no Releaser config file.
+
+|                | Public repository                                         | Private repository                                                                   |
+| -------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Workflow       | `release-public.yml` in `okocraft/public-ops`             | `.github/workflows/release.yml` in the repository, calling public-ops' `release.yml` |
+| Approval       | A maintainer approves the `release` environment           | None                                                                                 |
+| Publishing     | GitHub App token scoped to the repository, after approval | The repository's `GITHUB_TOKEN`                                                      |
+| Per-repo setup | None                                                      | The caller workflow (see Step 1)                                                     |
+
+Both workflows have a **build** job (checks out `ref`, verifies the version,
+builds, selects binaries) and a **publish** job (creates the tag at the
+built SHA and the release with `gh release create`). Private source, logs
+and binaries never leave the private repository's Actions run.
+
+Workflow inputs:
+
+| Input          | Required | Meaning                                                            |
+| -------------- | -------- | ------------------------------------------------------------------ |
+| `repository`   | public   | Repository name under okocraft, e.g. `Hugs`.                       |
+| `version`      | yes      | Must equal the project version at `ref`; no `-SNAPSHOT`.           |
+| `ref`          | no       | Branch, tag or SHA to release. Default: default/triggering branch. |
+| `tag`          | no       | Tag name. Default: inferred, see below.                            |
+| `java-version` | no       | Default `25`.                                                      |
+| `notes`        | no       | Release notes (Markdown). Default: GitHub-generated list of PRs.   |
+
+For a private repository you start its caller workflow, which forwards
+`version`, `ref` and `notes` to the reusable workflow.
+
+### Discovery rules
+
+The build job fails instead of guessing when these do not hold:
+
+- **Build tool:** Gradle wrapper (`gradlew`) or `pom.xml`, not both.
+- **Version:** Gradle `./gradlew properties` / Maven `help:evaluate`
+  `project.version` must equal `version`.
+- **Binaries:**
+  - Gradle: `build/libs/*.jar` of the root project (where the `bundler`
+    plugin's `copyToRootBuildDirectory` collects distributables).
+  - Maven: `target/*.jar` without `original-*` and the `sources`, `javadoc`
+    and `tests` classifiers. Exactly one JAR must remain; the plain
+    `<finalName>.jar` is dropped when a shaded JAR has another name.
+- **Tag:** follows existing tags (`v1.2.3` or `1.2.3`); `v<version>` when
+  there are none. An existing tag is an error.
+
 ## Rules
 
 Follow these in every step. If a rule conflicts with the request, stop and ask.
@@ -37,7 +84,7 @@ Stop and ask the human when:
 - CI on the commit to release is failing or missing,
 - there is nothing to release since the previous release,
 - the build tool, version location or binaries do not match the
-  [discovery rules](README.md#discovery-rules).
+  [discovery rules](#discovery-rules).
 
 ## Step 1: Collect facts
 
@@ -53,9 +100,47 @@ Tasks:
    and its tag commit. If there is none, this is the first release.
 4. Record the current version in the source and the commit SHA to release
    (head of the ref).
+5. Private repository only: check that `.github/workflows/release.yml`
+   exists on the default branch. If it does not, open a PR adding it (title
+   `ci: add release workflow using okocraft/public-ops`), pinned to the
+   latest public-ops release: get the tag with
+   `gh release view -R okocraft/public-ops --json tagName` and its commit
+   with `git ls-remote https://github.com/okocraft/public-ops 'refs/tags/<tag>*'`
+   (use the `^{}` line if present). Ask the human to merge it.
+
+   ```yaml
+   name: Release
+   on:
+     workflow_dispatch:
+       inputs:
+         version:
+           description: Version to release
+           required: true
+         ref:
+           description: Branch, tag or SHA to release
+           default: ""
+         notes:
+           description: Release notes in Markdown
+           default: ""
+
+   jobs:
+     release:
+       uses: okocraft/public-ops/.github/workflows/release.yml@<sha> # <tag>
+       with:
+         version: ${{ inputs.version }}
+         ref: ${{ inputs.ref }}
+         notes: ${{ inputs.notes }}
+       permissions:
+         contents: write
+   ```
+
+   If the existing caller workflow lacks the `ref` or `notes` input, include
+   adding them in the same kind of PR.
 
 Done when you have: default branch, visibility, build tool, version file,
-previous tag (or "none"), current source version and commit SHA.
+previous tag (or "none"), current source version and commit SHA, and, for a
+private repository, a merged caller workflow with `version`, `ref` and
+`notes` inputs.
 
 ## Step 2: Review the changes
 
@@ -196,8 +281,7 @@ Tasks:
      The person who started the run cannot approve it; another maintainer
      must.
 
-   - Private repository (requires `.github/workflows/release.yml`; if it is
-     missing, stop and ask):
+   - Private repository (caller workflow from Step 1):
 
      ```sh
      gh workflow run release.yml -R okocraft/<name> \
@@ -209,6 +293,9 @@ Tasks:
 
 Done when the run has completed successfully. If it failed, read the failed
 job log (`gh run view <run-id> --log-failed`), report the cause, and stop.
+For a public repository, a failure to create the App token usually means
+the one-time setup below is incomplete or the App is not installed on the
+repository.
 
 ## Step 7: Verify the release
 
@@ -237,3 +324,14 @@ Report to the human:
 - anything you could not verify, and follow-ups (for example, whether the
   repository usually moves the source version to the next `-SNAPSHOT` after
   a release; check its history and offer a PR if so).
+
+## Appendix: one-time setup for public repositories
+
+Done by a maintainer, not by the agent. If it is missing, ask for it.
+
+1. A GitHub App with repository permission **Contents: Read and write**,
+   installed on the okocraft public repositories to release.
+2. In public-ops, the `release` environment with required reviewers (prevent
+   self-review, no administrator bypass), limited to the `main` branch.
+3. In that environment, the variable `RELEASER_APP_CLIENT_ID` and the secret
+   `RELEASER_APP_PRIVATE_KEY`.
