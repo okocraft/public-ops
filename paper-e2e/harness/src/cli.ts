@@ -8,10 +8,15 @@ import type { Scenario } from "./scenario.ts";
 
 const USAGE = `Usage:
   node src/cli.ts prepare --dir <server-dir> --minecraft <version> [--translate] [--plugin luckperms]...
-  node src/cli.ts run --dir <server-dir> --minecraft <version> [--java <path>] [--out <dir>] [--reset <path>]... <scenario.ts>...
+  node src/cli.ts run --dir <server-dir> --minecraft <version> [--java <path>] [--out <dir>] [--reset <path>]... [--only <id>]... [--parallel <n>] [--base-port <port>] [--no-cds] <scenario.ts>...
 
 --reset <path> (relative to <server-dir>, repeatable) is deleted before every scenario, in addition to the
 worlds. Use it for plugin data and for files such as ops.json, usercache.json or plugins/LuckPerms/*.
+--only <id> (repeatable) runs just those scenarios, for re-running after a fix.
+--parallel <n> runs up to n scenarios at the same time, each on its own server copy and port
+(base-port + worker number). Every scenario still gets a fresh server.
+--no-cds skips the class-data-sharing archive (<server-dir>/.e2e/app.jsa) that is created on the first
+run and shortens every server start.
 Each scenario's console log is saved to <out>/logs/<scenario id>.log.
 
 Behind a proxy, run with NODE_USE_ENV_PROXY=1 so that downloads use HTTPS_PROXY.`;
@@ -26,6 +31,10 @@ const { positionals, values } = parseArgs({
     java: { type: "string", default: "java" },
     out: { type: "string", default: ".e2e/report" },
     reset: { type: "string", multiple: true, default: [] },
+    only: { type: "string", multiple: true, default: [] },
+    parallel: { type: "string", default: "1" },
+    "base-port": { type: "string", default: "25565" },
+    "no-cds": { type: "boolean", default: false },
   },
 });
 
@@ -76,7 +85,18 @@ if (command === "prepare") {
       ...(Array.isArray(loaded.default) ? loaded.default : [loaded.default as Scenario]),
     );
   }
-  const recorder = await runScenarios(scenarios, {
+  const selected =
+    values.only.length === 0 ? scenarios : scenarios.filter((s) => values.only.includes(s.id));
+  const unknown = values.only.filter((id) => !scenarios.some((s) => s.id === id));
+  if (unknown.length > 0 || selected.length === 0) {
+    throw new Error(
+      `No scenario matches --only ${unknown.join(", ")}. Known: ${scenarios.map((s) => s.id).join(", ")}`,
+    );
+  }
+  const recorder = await runScenarios(selected, {
+    parallel: Number(values.parallel),
+    basePort: Number(values["base-port"]),
+    cds: !values["no-cds"],
     env: {
       server: { dir, java: values.java },
       clientVersion: client.version,

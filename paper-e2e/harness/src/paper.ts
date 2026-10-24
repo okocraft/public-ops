@@ -3,6 +3,14 @@ import { appendFileSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { sleep, stripAnsi } from "./text.ts";
 
+/** Server processes to kill when the harness exits, so no server outlives a crashed run. */
+const runningProcesses = new Set<ChildProcessWithoutNullStreams>();
+process.on("exit", () => {
+  for (const child of runningProcesses) {
+    child.kill("SIGKILL");
+  }
+});
+
 const LOOPBACK_ADDRESSES: ReadonlySet<string> = new Set(["127.0.0.1", "::1", "localhost"]);
 
 /**
@@ -46,12 +54,21 @@ export function serverProperties(overrides: Record<string, string> = {}): string
  */
 export const KNOWN_SERVER_NOISE: readonly RegExp[] = [/No key layers in MapLike\[\{\}\]/];
 
+/**
+ * JVM flags that shorten the start of a short-lived test server: a serial GC and the C1 compiler
+ * only (the server lives for seconds, so optimizing compilation does not pay off).
+ */
+export const DEFAULT_JVM_ARGS: readonly string[] = ["-XX:+UseSerialGC", "-XX:TieredStopAtLevel=1"];
+
 export interface PaperServerOptions {
-  /** Directory containing `paper.jar` (or the jar named by `jar`). */
+  /** Working directory of the server. Contains `paper.jar` unless `jar` is given. */
   readonly dir: string;
+  /** Jar to run; a relative path is resolved against `dir`. */
   readonly jar?: string;
   readonly java?: string;
   readonly memory?: string;
+  /** JVM flags placed before `-jar`. Defaults to {@link DEFAULT_JVM_ARGS}. */
+  readonly jvmArgs?: readonly string[];
   readonly properties?: Record<string, string>;
 }
 
@@ -83,7 +100,13 @@ export class PaperServer {
     const java = this.#options.java ?? "java";
     const child = spawn(
       java,
-      [`-Xmx${this.#options.memory ?? "1G"}`, "-jar", this.#options.jar ?? "paper.jar", "--nogui"],
+      [
+        ...(this.#options.jvmArgs ?? DEFAULT_JVM_ARGS),
+        `-Xmx${this.#options.memory ?? "1G"}`,
+        "-jar",
+        this.#options.jar ?? "paper.jar",
+        "--nogui",
+      ],
       { cwd: this.dir },
     );
     this.#process = child;
@@ -99,8 +122,13 @@ export class PaperServer {
     };
     child.stdout.on("data", onData);
     child.stderr.on("data", onData);
-    this.#exited = new Promise((resolve) => child.on("exit", (code) => resolve(code)));
-    process.on("exit", () => child.kill("SIGKILL"));
+    this.#exited = new Promise((resolve) =>
+      child.on("exit", (code) => {
+        runningProcesses.delete(child);
+        resolve(code);
+      }),
+    );
+    runningProcesses.add(child);
     await this.waitForLog(/Done \(/, timeoutMs, 0);
   }
 
@@ -124,6 +152,30 @@ export class PaperServer {
       .slice(from)
       .filter((line) => /\b(ERROR|FATAL)\b/.test(line))
       .filter((line) => !KNOWN_SERVER_NOISE.some((noise) => noise.test(line)));
+  }
+
+  /**
+   * Runs a console command and returns as soon as a log line matches `pattern` (plus `settleMs`
+   * for the lines that follow it), or after `timeoutMs` when nothing matched. The caller checks the
+   * returned lines; a missing line is an observation, not an exception.
+   */
+  async runUntil(
+    command: string,
+    pattern: RegExp,
+    timeoutMs = 3000,
+    settleMs = 100,
+  ): Promise<string[]> {
+    const mark = this.mark();
+    this.command(command);
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (this.since(mark).some((line) => pattern.test(line))) {
+        await sleep(settleMs);
+        break;
+      }
+      await sleep(25);
+    }
+    return this.since(mark);
   }
 
   mark(): number {

@@ -9,6 +9,8 @@ export interface E2eEnvOptions {
   readonly clientVersion: string;
   /** Extra paths (relative to the server directory) to delete when starting from a clean state. */
   readonly resetPaths?: readonly string[];
+  /** Port of this server and its bots (default 25565). Parallel workers use different ports. */
+  readonly port?: number;
 }
 
 /** A running test server plus the bots connected to it. */
@@ -19,7 +21,10 @@ export class E2eEnv {
 
   constructor(options: E2eEnvOptions) {
     this.#options = options;
-    this.server = new PaperServer(options.server);
+    this.server = new PaperServer({
+      ...options.server,
+      properties: { ...options.server.properties, "server-port": String(options.port ?? 25565) },
+    });
   }
 
   /** Starts the server. With `fresh`, worlds and `resetPaths` are deleted first. */
@@ -38,7 +43,11 @@ export class E2eEnv {
   async join(...specs: BotSpec[]): Promise<void> {
     for (const spec of specs) {
       const options = typeof spec === "string" ? { username: spec } : spec;
-      const bot = new TestBot({ ...options, version: this.#options.clientVersion });
+      const bot = new TestBot({
+        ...options,
+        version: this.#options.clientVersion,
+        port: this.#options.port ?? 25565,
+      });
       await bot.join();
       this.bots[options.username] = bot;
     }
@@ -73,9 +82,26 @@ export class E2eEnv {
     await sleep(waitMs);
   }
 
-  /** Runs a helper plugin command and returns the structured `E2E` lines it printed. */
-  async helper(command: string, waitMs = 500): Promise<HelperLine[]> {
-    const lines = await this.server.run(command, waitMs);
+  /**
+   * Sends a chat message or command as a bot and returns the plain texts it received, as soon as a
+   * message matches `until` (or after `timeoutMs`). Use it for "the bot must receive X" checks;
+   * "the bot must not receive X" checks still need {@link say}'s fixed window plus a control.
+   */
+  async sayUntil(name: string, text: string, until: RegExp, timeoutMs = 3000): Promise<string[]> {
+    const bot = this.bot(name);
+    bot.clear();
+    bot.chat(text);
+    await bot.waitFor(() => bot.messages.some((message) => until.test(message.text)), timeoutMs);
+    await sleep(100); // let messages that follow the match arrive
+    return bot.messages.map((message) => message.text);
+  }
+
+  /**
+   * Runs a helper plugin command and returns the structured `E2E` lines it printed. Returns as
+   * soon as the first helper line appears; `timeoutMs` only matters for a command that prints none.
+   */
+  async helper(command: string, timeoutMs = 1500): Promise<HelperLine[]> {
+    const lines = await this.server.runUntil(command, /\bE2E [A-Z0-9_]+/, timeoutMs);
     return lines.flatMap((line) => {
       const parsed = parseHelperLine(line);
       return parsed === null ? [] : [parsed];
@@ -92,7 +118,7 @@ export class E2eEnv {
     value: "true" | "false" | "unset",
   ): Promise<string[]> {
     const action = value === "unset" ? `unset ${node}` : `set ${node} ${value}`;
-    return this.server.run(`lp user ${name} permission ${action}`, 800);
+    return this.server.runUntil(`lp user ${name} permission ${action}`, /\[LP\]/, 3000, 150);
   }
 
   async position(name: string): Promise<PlayerPosition | null> {
