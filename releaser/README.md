@@ -1,7 +1,7 @@
 # Releaser
 
-Status: **design and contracts only**. Nothing in this directory currently
-creates tags, modifies target repositories, or publishes releases.
+Status: **core implementation in progress**. Build/artifact inspection and the
+publication CLI are implemented, but no release workflows call them yet.
 
 Releaser aims to turn a request such as "release okocraft/Yaminabe at 0.1.0"
 into a tested GitHub Release with the expected binaries attached **without a
@@ -38,6 +38,7 @@ that entry point must not duplicate build commands or asset mappings.
 - [Release request JSON schema](contracts/release-request.schema.json):
   repository, requested version, and immutable source commit SHA.
 - [Example request](examples/release-request.json).
+- [Core CLI and integration requirements](docs/cli.md): tested staging and safe release publishing.
 - [Build and artifact discovery design](docs/discovery.md): infer from Gradle
   wrapper/project files or Maven POMs and validate distributable JARs.
 - [Architecture and threat model](docs/architecture.md).
