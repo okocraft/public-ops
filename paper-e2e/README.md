@@ -6,7 +6,7 @@ Minecraft protocol clients** (mineflayer bots, no Minecraft account needed).
 | Directory | Purpose |
 | --- | --- |
 | [`harness/`](harness) | TypeScript harness: server lifecycle, bots, scenario runner, evidence-based reporting |
-| [`helper-plugin/`](helper-plugin) | Test-only Paper plugin that exposes console commands (`e2epos`, `e2espawn`, `e2eequip`, `e2eperm`, `e2elisten`, ...) and logs structured `E2E <TAG> key=value` lines |
+| [`helper-plugin/`](helper-plugin) | Test-only Paper plugin that exposes console commands (`e2epos`, `e2espawn`, `e2eequip`, `e2elisten`, ...) and logs structured `E2E <TAG> key=value` lines |
 
 How to plan and run tests with them (stages, evidence rules, reporting) is described in the
 [OKOCRAFT docs](https://github.com/okocraft/docs): the *Minecraft / Paper End-to-End Testing* skill and

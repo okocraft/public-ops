@@ -1,8 +1,6 @@
 package net.okocraft.e2ehelper;
 
-import java.util.HashMap;
 import java.util.Locale;
-import java.util.Map;
 import java.util.UUID;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Location;
@@ -22,7 +20,6 @@ import org.bukkit.event.entity.EntityEvent;
 import org.bukkit.event.player.PlayerEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.permissions.PermissionAttachment;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -33,7 +30,6 @@ import org.bukkit.plugin.java.JavaPlugin;
  */
 public final class E2eHelperPlugin extends JavaPlugin {
 
-    private final Map<String, PermissionAttachment> attachments = new HashMap<>();
     private final Listener listener = new Listener() {
     };
 
@@ -54,7 +50,6 @@ public final class E2eHelperPlugin extends JavaPlugin {
                 case "e2ehealth" -> health(args[0]);
                 case "e2eexists" -> exists(args[0]);
                 case "e2eequip" -> equip(args);
-                case "e2eperm" -> permission(args);
                 case "e2elisten" -> listen(args[0]);
                 default -> {
                     return false;
@@ -115,23 +110,6 @@ public final class E2eHelperPlugin extends JavaPlugin {
         ItemStack item = a[2].equals("air") ? null : new ItemStack(Material.valueOf(a[2].toUpperCase(Locale.ROOT)));
         p.getInventory().setItem(slot, item);
         out("EQUIPPED", "player=" + p.getName() + " slot=" + a[1] + " item=" + a[2]);
-    }
-
-    /** {@code e2eperm <player> <node> <true|false|clear>}. */
-    private void permission(String[] a) {
-        Player p = player(a[0]);
-        String key = p.getUniqueId() + ":" + a[1];
-        PermissionAttachment old = attachments.remove(key);
-        if (old != null) {
-            p.removeAttachment(old);
-        }
-        if (!a[2].equals("clear")) {
-            PermissionAttachment attachment = p.addAttachment(this);
-            attachment.setPermission(a[1], Boolean.parseBoolean(a[2]));
-            attachments.put(key, attachment);
-        }
-        p.updateCommands();
-        out("PERM", "player=" + p.getName() + " node=" + a[1] + " value=" + a[2] + " effective=" + p.hasPermission(a[1]));
     }
 
     /** Registers a MONITOR listener that logs each call of the named event class. */
