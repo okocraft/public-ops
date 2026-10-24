@@ -13,7 +13,7 @@ It serves as a central place to organize, maintain, and share automation resourc
 - **Workflows** — Automated processes and GitHub Actions
 - **Scripts** — Utility scripts for operational tasks
 - **Tools** — Reusable tools and integrations
-- **[Releaser](releaser/README.md)** — A planned, approval-gated GitHub Releases orchestrator with reusable workflows for private repositories
+- **[Releaser](releaser/README.md)** — Planned GitHub Release automation for Gradle/Maven projects
 
 ## Guidelines
 
