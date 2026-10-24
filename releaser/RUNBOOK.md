@@ -61,7 +61,9 @@ The build job fails instead of guessing when these do not hold:
     and `tests` classifiers. Exactly one JAR must remain; the plain
     `<finalName>.jar` is dropped when a shaded JAR has another name.
 - **Tag:** follows existing tags (`v1.2.3` or `1.2.3`); `v<version>` when
-  there are none. An existing tag is an error.
+  there are none. An existing tag is an error. If existing tags mix both
+  styles, the build job fails: pass `tag` explicitly in the same style as the
+  latest release.
 
 ## Rules
 
