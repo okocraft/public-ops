@@ -1,50 +1,32 @@
-name: Releaser TypeScript Bootstrap
+name: Releaser TypeScript Checks
 
 on:
+  pull_request:
+    paths:
+      - "releaser/**"
+      - ".github/workflows/releaser-tests.yml"
   push:
-    branches: [feat/releaser-core]
+    branches: [main]
+    paths:
+      - "releaser/**"
+      - ".github/workflows/releaser-tests.yml"
 
 permissions:
   contents: read
 
 jobs:
-  compile-test-bundle:
+  checks:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24'
-          package-manager-cache: false
-      - name: Install dependencies without lifecycle scripts
+          cache: npm
+          cache-dependency-path: releaser/package-lock.json
+      - name: Install locked dependencies without lifecycle scripts
         working-directory: releaser
-        run: npm install --ignore-scripts --no-audit
-      - name: Format source with Prettier
+        run: npm ci --ignore-scripts --no-audit
+      - name: Typecheck, lint, test, format and verify checked-in bundles
         working-directory: releaser
-        run: npm run format
-      - name: Typecheck
-        working-directory: releaser
-        run: npm run typecheck
-      - name: Lint
-        working-directory: releaser
-        run: npm run lint
-      - name: Unit tests
-        working-directory: releaser
-        run: npm test
-      - name: Bundle prepare and publish actions
-        working-directory: releaser
-        run: npm run build
-      - name: Commit lockfile and bundled actions
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          git add releaser/package-lock.json releaser/actions/prepare/dist/index.js releaser/actions/publish/dist/index.js releaser/src releaser/tests releaser/scripts releaser/package.json releaser/tsconfig.json releaser/actions/prepare/action.yml releaser/actions/publish/action.yml releaser/.prettierrc.json
-          if ! git diff --cached --quiet; then
-            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'build(releaser): lock dependencies and bundle node24 actions'
-            auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w 0)"
-            git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" push origin HEAD:feat/releaser-core
-          fi
+        run: npm run check
