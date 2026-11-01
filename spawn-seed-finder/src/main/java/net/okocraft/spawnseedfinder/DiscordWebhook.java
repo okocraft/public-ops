@@ -16,10 +16,9 @@ import java.util.regex.Pattern;
 /**
  * Posts a message with one attached file to a Discord webhook.
  *
- * <p>Threads: a webhook URL may already carry {@code ?thread_id=...}; otherwise {@code threadId} posts into that
- * existing thread. A webhook of a forum/media channel needs a thread, so when Discord answers that one is required
- * (error 220001) and no thread id was given, the message is posted again as a new forum post named
- * {@code forumPostName}.</p>
+ * <p>Threads: to post into an existing thread, add {@code ?thread_id=...} to the webhook URL. A webhook of a
+ * forum/media channel needs a thread, so when Discord answers that one is required (error 220001) and the URL has
+ * no thread id, the message is posted again as a new forum post named {@code forumPostName}.</p>
  */
 final class DiscordWebhook {
 
@@ -43,29 +42,13 @@ final class DiscordWebhook {
     private final String forumPostName;
 
     /**
-     * @param threadId      existing thread to post into, or {@code null}
+     * @param url           webhook URL, optionally with {@code ?thread_id=...} to post into an existing thread
      * @param forumPostName name of the forum post to create when the webhook belongs to a forum channel
      */
-    DiscordWebhook(String url, String threadId, String forumPostName) {
-        this.url = withThread(URI.create(url.trim()), threadId);
+    DiscordWebhook(String url, String forumPostName) {
+        this.url = URI.create(url.trim());
         this.hasThread = this.url.getRawQuery() != null && this.url.getRawQuery().contains("thread_id=");
         this.forumPostName = forumPostName;
-    }
-
-    static URI withThread(URI url, String threadId) {
-        if (threadId == null || threadId.isBlank()) {
-            return url;
-        }
-        if (!threadId.trim().matches("\\d+")) {
-            throw new IllegalArgumentException("Discord thread id must be numeric");
-        }
-        String query = url.getRawQuery();
-        if (query != null && query.contains("thread_id=")) {
-            return url; // the URL already names a thread
-        }
-        String added = "thread_id=" + threadId.trim();
-        String base = url.toString();
-        return URI.create(base + (query == null || query.isEmpty() ? (base.endsWith("?") ? "" : "?") : "&") + added);
     }
 
     void post(String content, String fileName, String file) throws IOException, InterruptedException {
@@ -175,7 +158,7 @@ final class DiscordWebhook {
             out.append(code >= 0 ? ": " : "").append(message.length() > 200 ? message.substring(0, 200) : message);
         }
         if (code == FORUM_NEEDS_THREAD) {
-            out.append("; set a thread id, or a forum post name");
+            out.append("; add ?thread_id=... to the webhook URL, or set a forum post name");
         }
         return out.append(')').toString();
     }

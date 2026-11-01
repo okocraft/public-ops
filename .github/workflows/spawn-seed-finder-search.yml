@@ -75,7 +75,5 @@ jobs:
           SIZE: ${{ inputs.size }}
           MAX_RANGE: ${{ inputs.max-range }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          # Optional: id of an existing thread to post into. Without it, a forum channel webhook gets a new post per run.
-          DISCORD_THREAD_ID: ${{ vars.DISCORD_THREAD_ID }}
         run: |
-          ./gradlew run --args="search --biome $BIOME --count $COUNT --verify $VERIFY --size $SIZE --max-range $MAX_RANGE --mask-seeds --discord-webhook-env DISCORD_WEBHOOK_URL --discord-thread-env DISCORD_THREAD_ID"
+          ./gradlew run --args="search --biome $BIOME --count $COUNT --verify $VERIFY --size $SIZE --max-range $MAX_RANGE --mask-seeds --discord-webhook-env DISCORD_WEBHOOK_URL"
