@@ -1,0 +1,19 @@
+name: Spawn seed finder build
+on:
+  push:
+    branches: [main]
+    paths: [spawn-seed-finder/**, .github/workflows/spawn-seed-finder-build.yml]
+  pull_request:
+    paths: [spawn-seed-finder/**, .github/workflows/spawn-seed-finder-build.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    uses: okocraft/workflows/.github/workflows/gradle.yml@v1
+    with:
+      java-version: '25'
+      working-dir: spawn-seed-finder
+      artifact-directory: spawn-seed-finder/build/distributions
+      package-name: SpawnSeedFinder-Build-${{ github.run_number }}
