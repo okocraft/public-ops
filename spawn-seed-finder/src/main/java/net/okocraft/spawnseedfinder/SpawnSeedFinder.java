@@ -57,6 +57,8 @@ public final class SpawnSeedFinder {
           --keep-worlds            keep the generated server directories
           --mask-seeds             keep seeds out of the console (labels instead; registered as secrets on GitHub Actions)
           --discord-webhook-env <name>  post the result to the Discord webhook URL in this environment variable
+          --discord-forum-post <name>   name of the post to create when the webhook belongs to a forum channel
+                                   (default: "Spawn seeds: <biomes>")
         """;
 
     public static void main(String[] args) throws Exception {
@@ -161,7 +163,8 @@ public final class SpawnSeedFinder {
 
         if (webhookUrl != null) {
             String content = discordSummary(criteria, version, runSummary, results, failures.size());
-            new DiscordWebhook(webhookUrl).post(content, "spawn-seeds.md", report.toString());
+            String forumPost = options.getOrDefault("discord-forum-post", "Spawn seeds: " + String.join(", ", criteria.biomes()));
+            new DiscordWebhook(webhookUrl, forumPost).post(content, "spawn-seeds.md", report.toString());
             log("posted the result to Discord");
         }
         System.exit(0); // the server bootstrap leaves non-daemon threads behind
