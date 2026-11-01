@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -16,7 +17,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.SplittableRandom;
 
 /**
  * Finds world seeds whose spawn area fits a spawn platform.
@@ -103,7 +103,8 @@ public final class SpawnSeedFinder {
         if (command.equals("search")) {
             long count = Long.parseLong(options.getOrDefault("count", "100000"));
             int threads = Integer.parseInt(options.getOrDefault("threads", Integer.toString(Runtime.getRuntime().availableProcessors())));
-            long randomSeed = options.containsKey("random-seed") ? Long.parseLong(options.get("random-seed")) : new SplittableRandom().nextLong();
+            // SecureRandom, not new SplittableRandom(): the latter is seeded from the clock, and the log shows when it ran
+            long randomSeed = options.containsKey("random-seed") ? Long.parseLong(options.get("random-seed")) : new SecureRandom().nextLong();
             int top = Integer.parseInt(options.getOrDefault("top", "20"));
             // the random seed reproduces every candidate, so it is as secret as the seeds
             maskInCi(mask, randomSeed);
