@@ -55,6 +55,8 @@ seed. Generated worlds are deleted unless `--keep-worlds` is given (they are kep
 | `--random-seed <n>` | random | seed of the seed generator, for reproducible runs |
 | `--mask-seeds` | off | keep seeds (and the random seed) out of the console; on GitHub Actions they are also registered with `::add-mask::` |
 | `--discord-webhook-env <name>` | - | post a summary and the report to the Discord webhook URL in this environment variable |
+| `--discord-thread-env <name>` | - | post into the existing thread whose id is in this environment variable |
+| `--discord-forum-post <name>` | `Spawn seeds: <biomes>` | post name used when the webhook belongs to a forum channel and no thread is given |
 
 The platform level is the median ground height under the platform; paste the schematic so that its surface sits
 on that level.
@@ -68,6 +70,11 @@ artifact and seeds never appear in the log, because this repository and its work
 
 Setup: create the environment `spawn-seed-finder` (Settings → Environments; restricting it with required reviewers
 or to the `main` branch is recommended) and add the secret `DISCORD_WEBHOOK_URL` to it.
+To post into an existing thread, also add the environment variable `DISCORD_THREAD_ID` (or append
+`?thread_id=<id>` to the webhook URL). A webhook of a forum channel without a thread id creates a new post per run. A GitHub/Slack-compatible webhook URL
+(ending in `/github` or `/slack`) can be reused as is: the tool posts to the normal endpoint of the same webhook.
+Rate limits (HTTP 429) are retried after the time Discord asks for, and 5xx/connection errors with backoff, up to
+5 attempts.
 
 The workflow uses a square platform centred on 0,0 (`--size`), which matches a schematic whose offset is
 `-(size / 2)`; schematics are not stored in this repository.
