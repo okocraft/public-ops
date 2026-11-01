@@ -1,11 +1,13 @@
 package net.okocraft.spawnseedfinder;
 
+import com.google.gson.JsonObject;
 import net.minecraft.SharedConstants;
 
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -94,7 +96,8 @@ public final class SpawnSeedFinder {
         String version = SharedConstants.getCurrentVersion().name();
         NoiseSearch search = new NoiseSearch(worldgen, criteria);
         Report report = new Report().header(criteria, version);
-        String runSummary;
+        long searched = -1;
+        int candidateCount = 0;
 
         List<Long> toVerify = new ArrayList<>();
         if (command.equals("search")) {
@@ -109,7 +112,8 @@ public final class SpawnSeedFinder {
             candidates.forEach(candidate -> maskInCi(mask, candidate.seed()));
             report.noiseCandidates("Noise-stage candidates (" + count + " seeds, random-seed " + randomSeed + ")", candidates);
             candidates.stream().limit(verifyCount).forEach(candidate -> toVerify.add(candidate.seed()));
-            runSummary = String.format(Locale.ROOT, "%d seeds searched, %d candidates", count, candidates.size());
+            searched = count;
+            candidateCount = candidates.size();
         } else {
             String seeds = options.get("seeds");
             if (seeds == null) {
@@ -123,7 +127,6 @@ public final class SpawnSeedFinder {
                 given.add(new NoiseSearch.Candidate(seed, search.evaluateAlways(seed)));
             }
             report.noiseCandidates("Noise-stage stats of the given seeds", given);
-            runSummary = toVerify.size() + " given seeds";
         }
 
         List<ServerVerifier.Result> results = new ArrayList<>();
@@ -162,32 +165,12 @@ public final class SpawnSeedFinder {
         }
 
         if (webhookUrl != null) {
-            String content = discordSummary(criteria, version, runSummary, results, failures.size());
+            JsonObject message = DiscordMessage.build(new DiscordMessage.Run(criteria, version, searched, candidateCount, results, failures.size(), Instant.now()));
             String forumPost = options.getOrDefault("discord-forum-post", "Spawn seeds: " + String.join(", ", criteria.biomes()));
-            new DiscordWebhook(webhookUrl, forumPost).post(content, "spawn-seeds.md", report.toString());
+            new DiscordWebhook(webhookUrl, forumPost).post(message, "spawn-seeds.md", report.toString());
             log("posted the result to Discord");
         }
         System.exit(0); // the server bootstrap leaves non-daemon threads behind
-    }
-
-    private static String discordSummary(Criteria criteria, String version, String runSummary, List<ServerVerifier.Result> results, int failures) {
-        StringBuilder content = new StringBuilder()
-            .append("**Spawn seed search** - ").append(String.join(", ", criteria.biomes()))
-            .append(" (Minecraft ").append(version).append(", ").append(runSummary).append(")\n");
-        List<ServerVerifier.Result> ok = results.stream().filter(r -> r.stats().acceptable(criteria)).toList();
-        if (ok.isEmpty()) {
-            content.append("No verified seed fits the platform.\n");
-        } else {
-            for (ServerVerifier.Result r : ok) {
-                content.append(String.format(Locale.ROOT, "- `%d` level %d, ground %d..%d, trees %d, biome %.0f%%%n",
-                    r.seed(), r.stats().level(), r.stats().platformMin(), r.stats().platformMax(), r.treeColumns(), r.stats().biomeRatio() * 100));
-            }
-        }
-        long ng = results.size() - ok.size();
-        if (ng > 0 || failures > 0) {
-            content.append(String.format(Locale.ROOT, "(%d rejected on the server, %d failed to verify)%n", ng, failures));
-        }
-        return content.append("Full report and height maps attached.").toString();
     }
 
     /**

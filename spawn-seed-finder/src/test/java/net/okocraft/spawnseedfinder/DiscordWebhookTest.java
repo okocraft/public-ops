@@ -1,5 +1,6 @@
 package net.okocraft.spawnseedfinder;
 
+import com.google.gson.JsonObject;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.Test;
 
@@ -48,7 +49,7 @@ class DiscordWebhookTest {
             List<Duration> waits = new ArrayList<>();
             DiscordWebhook webhook = new DiscordWebhook("http://127.0.0.1:" + server.getAddress().getPort() + "/api/webhooks/1/token", null);
             webhook.sleeper = waits::add;
-            webhook.post("hello", "report.md", "# report");
+            webhook.post(message(), "report.md", "# report");
             assertEquals(4, requests.get());
             assertEquals(List.of(Duration.ofMillis(750), Duration.ofMillis(2250), Duration.ofSeconds(8)), waits);
         } finally {
@@ -66,12 +67,18 @@ class DiscordWebhookTest {
         try {
             DiscordWebhook webhook = new DiscordWebhook("http://127.0.0.1:" + server.getAddress().getPort() + "/api/webhooks/1/token", null);
             webhook.sleeper = duration -> {};
-            IOException e = assertThrows(IOException.class, () -> webhook.post("hello", "report.md", "# report"));
+            IOException e = assertThrows(IOException.class, () -> webhook.post(message(), "report.md", "# report"));
             assertEquals(DiscordWebhook.MAX_ATTEMPTS, requests.get());
             assertTrue(e.getMessage().contains("HTTP 429"), e.getMessage());
         } finally {
             server.stop(0);
         }
+    }
+
+    private static JsonObject message() {
+        JsonObject message = new JsonObject();
+        message.addProperty("content", "hello");
+        return message;
     }
 
     private interface Handler {
