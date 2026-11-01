@@ -54,7 +54,7 @@ seed. Generated worlds are deleted unless `--keep-worlds` is given (they are kep
 | `--threads <n>` | all cores | search threads |
 | `--random-seed <n>` | random | seed of the seed generator, for reproducible runs |
 | `--mask-seeds` | off | keep seeds (and the random seed) out of the console; on GitHub Actions they are also registered with `::add-mask::` |
-| `--discord-webhook-env <name>` | - | post a summary and the report to the Discord webhook URL in this environment variable |
+| `--discord-webhook-env <name>` | - | post the result to the Discord webhook URL in this environment variable: an embed with the accepted seeds (ground level, height range, trees to clear) and the rejection reasons, plus the full report as an attachment |
 | `--discord-forum-post <name>` | `Spawn seeds: <biomes>` | post name used when the webhook belongs to a forum channel and no thread is given |
 
 The platform level is the median ground height under the platform; paste the schematic so that its surface sits

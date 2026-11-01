@@ -1,5 +1,8 @@
 package net.okocraft.spawnseedfinder;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.ProxySelector;
@@ -22,7 +25,6 @@ import java.util.regex.Pattern;
  */
 final class DiscordWebhook {
 
-    private static final int MAX_CONTENT = 2000;
     /** "Webhooks posted to forum channels must have a thread_name or thread_id". */
     private static final int FORUM_NEEDS_THREAD = 220001;
     private static final Pattern ERROR_CODE = Pattern.compile("\"code\"\\s*:\\s*(\\d+)");
@@ -51,13 +53,13 @@ final class DiscordWebhook {
         this.forumPostName = forumPostName;
     }
 
-    void post(String content, String fileName, String file) throws IOException, InterruptedException {
-        if (content.length() > MAX_CONTENT) {
-            content = content.substring(0, MAX_CONTENT - 20) + "\n… (see the report)";
-        }
-        HttpResponse<String> response = this.sendWithRetry(content, null, fileName, file);
+    /**
+     * @param message message object ({@code content}, {@code embeds}, ...); the attachment is added as {@code files[0]}
+     */
+    void post(JsonObject message, String fileName, String file) throws IOException, InterruptedException {
+        HttpResponse<String> response = this.sendWithRetry(message, null, fileName, file);
         if (response.statusCode() == 400 && errorCode(response.body()) == FORUM_NEEDS_THREAD && !this.hasThread && this.forumPostName != null) {
-            response = this.sendWithRetry(content, this.forumPostName, fileName, file);
+            response = this.sendWithRetry(message, this.forumPostName, fileName, file);
         }
         if (response.statusCode() / 100 != 2) {
             // Only Discord's error code and message are logged; the rest of the body may echo the posted content.
@@ -69,11 +71,11 @@ final class DiscordWebhook {
      * Retries on 429 (waiting as long as Discord asks: {@code Retry-After} header or {@code retry_after} in the
      * body) and on 5xx / connection errors (exponential backoff).
      */
-    private HttpResponse<String> sendWithRetry(String content, String threadName, String fileName, String file) throws IOException, InterruptedException {
+    private HttpResponse<String> sendWithRetry(JsonObject message, String threadName, String fileName, String file) throws IOException, InterruptedException {
         for (int attempt = 1; ; attempt++) {
             HttpResponse<String> response;
             try {
-                response = this.send(content, threadName, fileName, file);
+                response = this.send(message, threadName, fileName, file);
             } catch (IOException e) {
                 if (attempt >= MAX_ATTEMPTS) {
                     throw e;
@@ -115,12 +117,14 @@ final class DiscordWebhook {
         return Duration.ofMillis((long) Math.ceil(seconds * 1000) + 250); // small margin over the bucket reset
     }
 
-    private HttpResponse<String> send(String content, String threadName, String fileName, String file) throws IOException, InterruptedException {
-        StringBuilder payload = new StringBuilder("{\"content\":").append(json(content));
+    private HttpResponse<String> send(JsonObject message, String threadName, String fileName, String file) throws IOException, InterruptedException {
+        JsonObject payload = message.deepCopy();
         if (threadName != null) {
-            payload.append(",\"thread_name\":").append(json(threadName.length() > 100 ? threadName.substring(0, 100) : threadName));
+            payload.addProperty("thread_name", threadName.length() > 100 ? threadName.substring(0, 100) : threadName);
         }
-        payload.append(",\"allowed_mentions\":{\"parse\":[]}}");
+        JsonObject allowedMentions = new JsonObject();
+        allowedMentions.add("parse", new JsonArray());
+        payload.add("allowed_mentions", allowedMentions);
 
         String boundary = "----spawn-seed-finder-" + UUID.randomUUID();
         ByteArrayOutputStream body = new ByteArrayOutputStream();
@@ -174,26 +178,5 @@ final class DiscordWebhook {
         body.write(header.toString().getBytes(StandardCharsets.UTF_8));
         body.write(value.getBytes(StandardCharsets.UTF_8));
         body.write("\r\n".getBytes(StandardCharsets.UTF_8));
-    }
-
-    static String json(String value) {
-        StringBuilder out = new StringBuilder("\"");
-        for (char c : value.toCharArray()) {
-            switch (c) {
-                case '"' -> out.append("\\\"");
-                case '\\' -> out.append("\\\\");
-                case '\n' -> out.append("\\n");
-                case '\r' -> out.append("\\r");
-                case '\t' -> out.append("\\t");
-                default -> {
-                    if (c < 0x20) {
-                        out.append(String.format("\\u%04x", (int) c));
-                    } else {
-                        out.append(c);
-                    }
-                }
-            }
-        }
-        return out.append('"').toString();
     }
 }
