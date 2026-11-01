@@ -47,29 +47,9 @@ final class DiscordWebhook {
      * @param forumPostName name of the forum post to create when the webhook belongs to a forum channel
      */
     DiscordWebhook(String url, String threadId, String forumPostName) {
-        this.url = withThread(executeEndpoint(URI.create(url.trim())), threadId);
+        this.url = withThread(URI.create(url.trim()), threadId);
         this.hasThread = this.url.getRawQuery() != null && this.url.getRawQuery().contains("thread_id=");
         this.forumPostName = forumPostName;
-    }
-
-    /**
-     * Turns a GitHub/Slack-compatible webhook URL ({@code .../github}, {@code .../slack}) into the normal execute
-     * endpoint: those variants only accept GitHub/Slack payloads and reject a normal message with HTTP 400.
-     */
-    static URI executeEndpoint(URI url) {
-        String path = url.getRawPath();
-        for (String suffix : new String[]{"/github", "/slack"}) {
-            if (path != null && path.endsWith(suffix)) {
-                String trimmed = path.substring(0, path.length() - suffix.length());
-                return URI.create(url.getScheme() + "://" + url.getRawAuthority() + trimmed
-                    + (url.getRawQuery() == null ? "" : "?" + url.getRawQuery()));
-            }
-        }
-        return url;
-    }
-
-    URI url() {
-        return this.url;
     }
 
     static URI withThread(URI url, String threadId) {

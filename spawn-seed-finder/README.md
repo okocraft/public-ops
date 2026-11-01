@@ -71,8 +71,7 @@ artifact and seeds never appear in the log, because this repository and its work
 Setup: create the environment `spawn-seed-finder` (Settings → Environments; restricting it with required reviewers
 or to the `main` branch is recommended) and add the secret `DISCORD_WEBHOOK_URL` to it.
 To post into an existing thread, also add the environment variable `DISCORD_THREAD_ID` (or append
-`?thread_id=<id>` to the webhook URL). A webhook of a forum channel without a thread id creates a new post per run. A GitHub/Slack-compatible webhook URL
-(ending in `/github` or `/slack`) can be reused as is: the tool posts to the normal endpoint of the same webhook.
+`?thread_id=<id>` to the webhook URL). A webhook of a forum channel without a thread id creates a new post per run.
 Rate limits (HTTP 429) are retried after the time Discord asks for, and 5xx/connection errors with backoff, up to
 5 attempts.
 

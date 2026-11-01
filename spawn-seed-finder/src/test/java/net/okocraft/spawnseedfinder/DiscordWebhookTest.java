@@ -52,16 +52,6 @@ class DiscordWebhookTest {
     }
 
     @Test
-    void usesTheExecuteEndpointForGithubAndSlackUrls() {
-        assertEquals(HOOK, new DiscordWebhook("https://discord.com/api/webhooks/1/token/github", null, null).url());
-        assertEquals(HOOK, new DiscordWebhook("https://discord.com/api/webhooks/1/token/slack", null, null).url());
-        assertEquals(URI.create("https://discord.com/api/webhooks/1/token?thread_id=42"),
-            new DiscordWebhook("https://discord.com/api/webhooks/1/token/github?thread_id=42", null, null).url());
-        assertEquals(URI.create("https://discord.com/api/webhooks/1/token?thread_id=9"),
-            new DiscordWebhook("https://discord.com/api/webhooks/1/token/github", "9", null).url());
-    }
-
-    @Test
     void retriesRateLimitedRequests() throws Exception {
         AtomicInteger requests = new AtomicInteger();
         HttpServer server = server(exchange -> {
