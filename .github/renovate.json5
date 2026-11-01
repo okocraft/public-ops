@@ -5,16 +5,5 @@
     "github>okocraft/renovate-config//npm/renovate.json5",
     "github>okocraft/renovate-config//java/gradle/renovate.json5",
     "github>okocraft/renovate-config//java/ignores/papermc/renovate.json5",
-  ],
-  packageRules: [
-    {
-      // Paper dev bundle (paperweight-userdev), versioned like paper-api (e.g. 26.3.build.236-stable).
-      matchManagers: ["gradle"],
-      matchPackageNames: ["io.papermc.paper:dev-bundle"],
-      registryUrls: ["https://repo.papermc.io/repository/maven-public/"],
-      minimumReleaseAge: "3 days",
-      ignoreUnstable: false,
-      allowedVersions: "!/-alpha(?:\\.|$)/",
-    },
-  ],
+  ]
 }

@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.SplittableRandom;
@@ -54,6 +55,8 @@ public final class SpawnSeedFinder {
           --random-seed <n>        seed of the seed generator, for reproducible searches
           --out <file>             report file (default spawn-seeds.md)
           --keep-worlds            keep the generated server directories
+          --mask-seeds             keep seeds out of the console (labels instead; registered as secrets on GitHub Actions)
+          --discord-webhook-env <name>  post the result to the Discord webhook URL in this environment variable
         """;
 
     public static void main(String[] args) throws Exception {
@@ -77,8 +80,19 @@ public final class SpawnSeedFinder {
         Criteria criteria = criteria(options, worldgen.overworldBiomes());
         Path out = Path.of(options.getOrDefault("out", "spawn-seeds.md"));
         int verifyCount = Integer.parseInt(options.getOrDefault("verify", "5"));
+        boolean mask = options.containsKey("mask-seeds");
+        String webhookEnv = options.get("discord-webhook-env");
+        String webhookUrl = null;
+        if (webhookEnv != null) {
+            webhookUrl = System.getenv(webhookEnv);
+            if (webhookUrl == null || webhookUrl.isBlank()) {
+                fail("Environment variable " + webhookEnv + " (--discord-webhook-env) is not set");
+            }
+        }
+        String version = SharedConstants.getCurrentVersion().name();
         NoiseSearch search = new NoiseSearch(worldgen, criteria);
-        Report report = new Report().header(criteria, SharedConstants.getCurrentVersion().name());
+        Report report = new Report().header(criteria, version);
+        String runSummary;
 
         List<Long> toVerify = new ArrayList<>();
         if (command.equals("search")) {
@@ -86,10 +100,14 @@ public final class SpawnSeedFinder {
             int threads = Integer.parseInt(options.getOrDefault("threads", Integer.toString(Runtime.getRuntime().availableProcessors())));
             long randomSeed = options.containsKey("random-seed") ? Long.parseLong(options.get("random-seed")) : new SplittableRandom().nextLong();
             int top = Integer.parseInt(options.getOrDefault("top", "20"));
-            log("searching " + count + " seeds with " + threads + " threads (random-seed " + randomSeed + ")");
+            // the random seed reproduces every candidate, so it is as secret as the seeds
+            maskInCi(mask, randomSeed);
+            log("searching " + count + " seeds with " + threads + " threads" + (mask ? "" : " (random-seed " + randomSeed + ")"));
             List<NoiseSearch.Candidate> candidates = search.search(count, threads, randomSeed, top, SpawnSeedFinder::log);
+            candidates.forEach(candidate -> maskInCi(mask, candidate.seed()));
             report.noiseCandidates("Noise-stage candidates (" + count + " seeds, random-seed " + randomSeed + ")", candidates);
             candidates.stream().limit(verifyCount).forEach(candidate -> toVerify.add(candidate.seed()));
+            runSummary = String.format(Locale.ROOT, "%d seeds searched, %d candidates", count, candidates.size());
         } else {
             String seeds = options.get("seeds");
             if (seeds == null) {
@@ -103,39 +121,81 @@ public final class SpawnSeedFinder {
                 given.add(new NoiseSearch.Candidate(seed, search.evaluateAlways(seed)));
             }
             report.noiseCandidates("Noise-stage stats of the given seeds", given);
+            runSummary = toVerify.size() + " given seeds";
         }
 
+        List<ServerVerifier.Result> results = new ArrayList<>();
+        List<String> failures = new ArrayList<>();
         if (!toVerify.isEmpty() && (command.equals("verify") || verifyCount > 0)) {
             ServerVerifier verifier = new ServerVerifier(criteria, Path.of("verify-worlds").toAbsolutePath(), options.containsKey("keep-worlds"), SpawnSeedFinder::log);
-            List<ServerVerifier.Result> results = new ArrayList<>();
-            Report failures = new Report();
-            boolean failed = false;
-            for (long seed : toVerify) {
+            Report failureReport = new Report();
+            for (int i = 0; i < toVerify.size(); i++) {
+                long seed = toVerify.get(i);
+                String label = mask ? "candidate-" + (i + 1) : Long.toString(seed);
                 try {
-                    ServerVerifier.Result result = verifier.verify(seed);
-                    log(String.format("%d: level %d, ground %d..%d, fluid %d, trees %d, biome ratio %.2f -> %s",
-                        seed, result.stats().level(), result.stats().platformMin(), result.stats().platformMax(),
+                    ServerVerifier.Result result = verifier.verify(seed, label);
+                    log(String.format(Locale.ROOT, "%s: level %d, ground %d..%d, fluid %d, trees %d, biome ratio %.2f -> %s",
+                        label, result.stats().level(), result.stats().platformMin(), result.stats().platformMax(),
                         result.stats().fluidColumns(), result.treeColumns(), result.stats().biomeRatio(),
                         result.stats().acceptable(criteria) ? "OK" : "NG"));
                     results.add(result);
                 } catch (IOException e) {
-                    log("verification of " + seed + " failed: " + e.getMessage());
-                    failures.failure(seed, e);
-                    failed = true;
+                    log("verification of " + label + " failed: " + e.getMessage());
+                    failureReport.failure(seed, e);
+                    failures.add(label);
                 }
             }
             results.sort((a, b) -> Double.compare(a.stats().score(), b.stats().score()));
             report.verified(results, criteria);
-            if (failed) {
-                report = report.append(failures);
+            if (!failures.isEmpty()) {
+                report.append(failureReport);
             }
         }
 
         Files.writeString(out, report.toString());
         log("report written to " + out.toAbsolutePath());
-        OUT.println(report);
-        OUT.flush();
+        if (!mask) {
+            OUT.println(report);
+            OUT.flush();
+        }
+
+        if (webhookUrl != null) {
+            String content = discordSummary(criteria, version, runSummary, results, failures.size());
+            new DiscordWebhook(webhookUrl).post(content, "spawn-seeds.md", report.toString());
+            log("posted the result to Discord");
+        }
         System.exit(0); // the server bootstrap leaves non-daemon threads behind
+    }
+
+    private static String discordSummary(Criteria criteria, String version, String runSummary, List<ServerVerifier.Result> results, int failures) {
+        StringBuilder content = new StringBuilder()
+            .append("**Spawn seed search** - ").append(String.join(", ", criteria.biomes()))
+            .append(" (Minecraft ").append(version).append(", ").append(runSummary).append(")\n");
+        List<ServerVerifier.Result> ok = results.stream().filter(r -> r.stats().acceptable(criteria)).toList();
+        if (ok.isEmpty()) {
+            content.append("No verified seed fits the platform.\n");
+        } else {
+            for (ServerVerifier.Result r : ok) {
+                content.append(String.format(Locale.ROOT, "- `%d` level %d, ground %d..%d, trees %d, biome %.0f%%%n",
+                    r.seed(), r.stats().level(), r.stats().platformMin(), r.stats().platformMax(), r.treeColumns(), r.stats().biomeRatio() * 100));
+            }
+        }
+        long ng = results.size() - ok.size();
+        if (ng > 0 || failures > 0) {
+            content.append(String.format(Locale.ROOT, "(%d rejected on the server, %d failed to verify)%n", ng, failures));
+        }
+        return content.append("Full report and height maps attached.").toString();
+    }
+
+    /**
+     * Registers a value as a secret with GitHub Actions so that it is masked even if something prints it.
+     * The {@code ::add-mask::} command itself is not shown in the log.
+     */
+    private static void maskInCi(boolean mask, long value) {
+        if (mask && "true".equals(System.getenv("GITHUB_ACTIONS"))) {
+            OUT.println("::add-mask::" + value);
+            OUT.flush();
+        }
     }
 
     private static Criteria criteria(Map<String, String> options, Set<String> knownBiomes) throws IOException {
@@ -186,7 +246,7 @@ public final class SpawnSeedFinder {
                 fail("Unexpected argument: " + args[i]);
             }
             String key = args[i].substring(2);
-            if (key.equals("keep-worlds")) {
+            if (key.equals("keep-worlds") || key.equals("mask-seeds")) {
                 options.put(key, "true");
             } else if (i + 1 < args.length) {
                 options.put(key, args[++i]);

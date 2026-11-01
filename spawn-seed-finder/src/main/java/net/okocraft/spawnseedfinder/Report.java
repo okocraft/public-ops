@@ -61,6 +61,9 @@ final class Report {
     }
 
     Report failure(long seed, Exception e) {
+        if (this.out.isEmpty()) {
+            this.out.append("## Verification failures\n\n");
+        }
         this.out.append("- `").append(seed).append("`: verification failed: ").append(e.getMessage()).append("\n");
         return this;
     }

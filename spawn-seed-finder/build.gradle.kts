@@ -17,7 +17,7 @@ repositories {
 }
 
 dependencies {
-    paperweightDevelopmentBundle(libs.paper.dev.bundle)
+    paperweight.paperDevBundle(libs.versions.paper.get())
 
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)

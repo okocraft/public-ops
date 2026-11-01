@@ -27,7 +27,7 @@ class ServerVerifierTest {
     @Timeout(value = 10, unit = TimeUnit.MINUTES)
     void verifiesKnownSeedOnPaper(@TempDir Path dir) throws Exception {
         Criteria criteria = NoiseSearchTest.taiga();
-        ServerVerifier.Result result = new ServerVerifier(criteria, dir, false, System.out::println).verify(NoiseSearchTest.FLAT_TAIGA);
+        ServerVerifier.Result result = new ServerVerifier(criteria, dir, false, System.out::println).verify(NoiseSearchTest.FLAT_TAIGA, "flat-taiga");
 
         Terrain.Stats stats = result.stats();
         assertEquals(64, stats.level(), stats::toString);

@@ -75,8 +75,11 @@ public final class ServerVerifier {
         this.log = log;
     }
 
-    public Result verify(long seed) throws IOException, InterruptedException {
-        Path serverDirectory = this.workDirectory.resolve("server-" + seed);
+    /**
+     * @param label name used in logs and for the server directory, so that the seed itself does not have to appear
+     */
+    public Result verify(long seed, String label) throws IOException, InterruptedException {
+        Path serverDirectory = this.workDirectory.resolve("server-" + label);
         deleteRecursively(serverDirectory);
         Files.createDirectories(serverDirectory);
         Files.writeString(serverDirectory.resolve("eula.txt"), "eula=true\n");
@@ -91,7 +94,7 @@ public final class ServerVerifier {
             ""
         ));
 
-        this.log.accept("verifying " + seed + " on a Paper server in " + serverDirectory);
+        this.log.accept("verifying " + label + " on a Paper server in " + serverDirectory);
         Process process = new ProcessBuilder(
             ProcessHandle.current().info().command().orElse("java"),
             "-Xmx3G",

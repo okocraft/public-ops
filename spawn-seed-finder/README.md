@@ -53,13 +53,29 @@ seed. Generated worlds are deleted unless `--keep-worlds` is given (they are kep
 | `--verify <n>` | 5 | candidates to verify on Paper (0 = skip) |
 | `--threads <n>` | all cores | search threads |
 | `--random-seed <n>` | random | seed of the seed generator, for reproducible runs |
+| `--mask-seeds` | off | keep seeds (and the random seed) out of the console; on GitHub Actions they are also registered with `::add-mask::` |
+| `--discord-webhook-env <name>` | - | post a summary and the report to the Discord webhook URL in this environment variable |
 
 The platform level is the median ground height under the platform; paste the schematic so that its surface sits
 on that level.
 
+## GitHub Actions
+
+[`Spawn seed search`](../.github/workflows/spawn-seed-finder-search.yml) runs a search from the Actions tab
+(`workflow_dispatch`) with a biome key (comma-separated for several), the number of seeds, the number of seeds to
+verify, the platform size and the max height range. The result is posted to Discord; nothing is uploaded as an
+artifact and seeds never appear in the log, because this repository and its workflow logs are public.
+
+Setup: create the environment `spawn-seed-finder` (Settings → Environments; restricting it with required reviewers
+or to the `main` branch is recommended) and add the secret `DISCORD_WEBHOOK_URL` to it.
+
+The workflow uses a square platform centred on 0,0 (`--size`), which matches a schematic whose offset is
+`-(size / 2)`; schematics are not stored in this repository.
+
 ## Updates
 
-Renovate updates the dev bundle (`io.papermc.paper:dev-bundle`) and paperweight-userdev; CI runs `./gradlew build`.
+Renovate updates the Paper version (through the `paper-api` entry in the version catalog, which also selects the dev
+bundle) and paperweight-userdev; CI runs `./gradlew build`.
 The tests generate known seeds (noise stage and a real Paper server) and compare them with measured values, so a
 failing build after an update means one of:
 
