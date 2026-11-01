@@ -1,0 +1,17 @@
+[versions]
+
+paper = "26.3.build.236-stable"
+junit = "6.1.3"
+
+[libraries]
+
+# Not used in the project but declared here for Renovate
+paper-api = { module = "io.papermc.paper:paper-api", version.ref = "paper" }
+
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+
+[plugins]
+
+paperweight-userdev = { id = "io.papermc.paperweight.userdev", version = "2.0.0-beta.24" }

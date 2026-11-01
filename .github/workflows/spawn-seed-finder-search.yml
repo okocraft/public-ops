@@ -1,0 +1,79 @@
+name: Spawn seed search
+on:
+  workflow_dispatch:
+    inputs:
+      biome:
+        description: Biome key(s) for the spawn, comma-separated (e.g. minecraft:taiga)
+        required: true
+        type: string
+      count:
+        description: Seeds to search
+        required: false
+        type: string
+        default: '100000'
+      verify:
+        description: Best candidates to verify on a Paper server
+        required: false
+        type: string
+        default: '5'
+      size:
+        description: Platform size (square, centred on 0,0)
+        required: false
+        type: string
+        default: '31'
+      max-range:
+        description: Max ground height difference under the platform
+        required: false
+        type: string
+        default: '3'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spawn-seed-search
+  cancel-in-progress: false
+
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    # The webhook URL is an environment secret. Seeds are never printed to the log (they are masked), and the
+    # report is only sent to Discord, never uploaded as an artifact: this repository and its logs are public.
+    environment: spawn-seed-finder
+    timeout-minutes: 120
+    defaults:
+      run:
+        working-directory: spawn-seed-finder
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          java-version: '25'
+          distribution: temurin
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          cache-read-only: true
+      - name: Validate inputs
+        env:
+          BIOME: ${{ inputs.biome }}
+          COUNT: ${{ inputs.count }}
+          VERIFY: ${{ inputs.verify }}
+          SIZE: ${{ inputs.size }}
+          MAX_RANGE: ${{ inputs.max-range }}
+        run: |
+          [[ "$BIOME" =~ ^[a-z0-9_.-]+(:[a-z0-9_./-]+)?(,[a-z0-9_.-]+(:[a-z0-9_./-]+)?)*$ ]] || { echo "::error::invalid biome: $BIOME"; exit 1; }
+          for value in "$COUNT" "$VERIFY" "$SIZE" "$MAX_RANGE"; do
+            [[ "$value" =~ ^[0-9]{1,9}$ ]] || { echo "::error::not a number: $value"; exit 1; }
+          done
+      - name: Search
+        env:
+          BIOME: ${{ inputs.biome }}
+          COUNT: ${{ inputs.count }}
+          VERIFY: ${{ inputs.verify }}
+          SIZE: ${{ inputs.size }}
+          MAX_RANGE: ${{ inputs.max-range }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          ./gradlew run --args="search --biome $BIOME --count $COUNT --verify $VERIFY --size $SIZE --max-range $MAX_RANGE --mask-seeds --discord-webhook-env DISCORD_WEBHOOK_URL"
