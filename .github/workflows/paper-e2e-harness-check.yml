@@ -22,7 +22,7 @@ jobs:
       - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
         with:
           working-directory: paper-e2e/harness
-          runtime: node@24
+          runtime: node@26
           cache: true
           save-cache: ${{ github.ref == 'refs/heads/main' }}
           require-lockfile: true
