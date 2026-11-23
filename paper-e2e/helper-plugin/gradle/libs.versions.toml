@@ -1,7 +1,7 @@
 [versions]
-paper = "26.3.build.209-stable"
+paper = "26.3.build.256-stable"
 
-gradle-plugins = "1.8.6"
+gradle-plugins = "1.9.0"
 
 [libraries]
 platform-paper = { module = "io.papermc.paper:paper-api", version.ref = "paper" }
