@@ -1,6 +1,6 @@
 [versions]
 
-paper = "26.3.build.257-stable"
+paper = "26.3.build.258-stable"
 junit = "6.1.3"
 
 [libraries]
